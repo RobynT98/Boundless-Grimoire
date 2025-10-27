@@ -66,18 +66,21 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
   })
 
   // --- Stored marks helpers (hindrar IME från att nolla stil) ---
-  function addStoredTextStyle(attrs: { color?: string; fontFamily?: string }) {
+  function addStoredTextStyle(attrs: { color?: string; fontFamily?: string | null }) {
     if (!editor) return
     const { state, view } = editor
     const markType = state.schema.marks.textStyle
-    const tr = state.tr.addStoredMark(markType.create(attrs))
+    const tr = state.tr.addStoredMark(
+      attrs.fontFamily === null
+        ? markType.create()
+        : markType.create(attrs)
+    )
     view.dispatch(tr)
   }
 
   function clearStoredMarks() {
     if (!editor) return
     const { state, view } = editor
-    // töm alla stored marks
     view.dispatch(state.tr.setStoredMarks([]))
   }
 
@@ -191,6 +194,8 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     const v = ev.target.value
     editor.chain().focus().setColor(v).run()
     addStoredTextStyle({ color: v })
+    // säkerställ efter UI-fokus på mobil
+    setTimeout(() => addStoredTextStyle({ color: v }), 0)
   }
 
   function setFont(family: string) {
@@ -198,10 +203,13 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     if (family === 'system') {
       editor.chain().focus().unsetFontFamily().run()
       clearStoredMarks()
+      // liten extra för att verkligen nolla
+      setTimeout(() => clearStoredMarks(), 0)
     } else {
       const resolved = resolveFontFamily(family)
       editor.chain().focus().setFontFamily(resolved).run()
       addStoredTextStyle({ fontFamily: resolved })
+      setTimeout(() => addStoredTextStyle({ fontFamily: resolved }), 0)
     }
   }
 
