@@ -1,4 +1,3 @@
-// src/pages/Home.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { getCollections, getEntries } from '../db'
 import type { Collection, Entry } from '../types'
@@ -8,8 +7,8 @@ import { marked } from 'marked'
 /* ---------- MD/HTML → ren text (för snippets) ---------- */
 function mdToPlain(mdOrHtml: string, title?: string): string {
   const raw = mdOrHtml || ''
-  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
-  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
+  // Alltid parsa → både MD och ev. rå HTML blir HTML
+  const html = marked.parse(raw, { async: false }) as string
 
   // Fallback utan DOM (SSR)
   if (typeof window === 'undefined') {
@@ -22,7 +21,7 @@ function mdToPlain(mdOrHtml: string, title?: string): string {
   const div = document.createElement('div')
   div.innerHTML = html
 
-  // Ta bort första H1/H2 (rubriker) för att slippa “# …” i snippet
+  // Ta bort första H1/H2 (rubriker) från snippet
   const firstHeading = div.querySelector('h1, h2')
   if (firstHeading) firstHeading.remove()
 
@@ -31,7 +30,6 @@ function mdToPlain(mdOrHtml: string, title?: string): string {
   if (title) text = stripLeadingTitle(text, title)
   return text
 }
-
 function stripLeadingTitle(text: string, title: string): string {
   const t = title.trim()
   if (!t) return text
