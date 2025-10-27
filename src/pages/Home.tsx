@@ -1,7 +1,23 @@
+// src/pages/Home.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { getCollections, getEntries } from '../db'
 import type { Collection, Entry } from '../types'
 import { Link } from 'react-router-dom'
+import { marked } from 'marked'
+
+// Hjälp: säkert MD/HTML → plain text (för snippets)
+function mdToPlain(mdOrHtml: string): string {
+  const raw = mdOrHtml || ''
+  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
+  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
+  if (typeof window === 'undefined') {
+    // fallback utan DOM
+    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  }
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim()
+}
 
 // Plocka fram “viktigaste” fältet per samling för att visa som undertext
 function entrySubtitle(e: Entry): string {
@@ -48,9 +64,7 @@ export default function Home() {
     <div className="p-4 space-y-5 text-[16px]">
       <header className="space-y-1">
         <h1>Boundless Grimoire</h1>
-        <p className="text-muted">
-          Ditt modulära, offline-först uppslagsverk i grimoire-stil.
-        </p>
+        <p className="text-muted">Ditt modulära, offline-först uppslagsverk i grimoire-stil.</p>
       </header>
 
       {/* Snabbgenvägar */}
@@ -65,15 +79,14 @@ export default function Home() {
         <h2>Senast uppdaterade</h2>
 
         {recent.length === 0 ? (
-          <div className="text-muted">
-            Inga poster ännu. Skapa din första via <b>Skapa</b>.
-          </div>
+          <div className="text-muted">Inga poster ännu. Skapa din första via <b>Skapa</b>.</div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {recent.map(e => {
               const col = colMap.get(e.collectionId)
               const subtitle = entrySubtitle(e)
-              const snippet = (e.contentMD || '').slice(0, 160)
+              const snippet = mdToPlain(e.contentMD).slice(0, 160)
+
               return (
                 <Link
                   key={e.id}
@@ -81,7 +94,7 @@ export default function Home() {
                   className="card p-4 hover:brightness-110 transition"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="text-2xl shrink-0">{col?.icon || '📄'}</div>
+                    <div className="text-2xl shrink-0 select-none">{col?.icon || '📄'}</div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold truncate">{e.title}</h3>
@@ -95,7 +108,9 @@ export default function Home() {
                       {subtitle && (
                         <div className="text-xs text-muted mt-0.5 truncate">{subtitle}</div>
                       )}
-                      <p className="text-sm text-main mt-1 line-clamp-2">{snippet}</p>
+                      {snippet && (
+                        <p className="text-sm text-main mt-1 line-clamp-2">{snippet}</p>
+                      )}
                     </div>
                   </div>
                 </Link>
