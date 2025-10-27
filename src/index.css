@@ -209,12 +209,16 @@ html[data-theme="light"] .tab-active{ color: #0a0a0a; }
   display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
 }
 .editor-toolbar.sticky {
-  position: sticky; top: 0; z-index: 30;
-  background: color-mix(in oklab, var(--panel), var(--bg) 10%);
-  backdrop-filter: saturate(1.2) blur(6px);
-  border-bottom: 1px solid var(--border);
-  padding: .5rem .25rem;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding: .25rem 0;
+  background: var(--bg);
 }
+.editor-avoid-overlap { padding-top: .25rem; }
 
 /* Färg-väljaren i toolbaren */
 .editor-toolbar input[type="color"]{
