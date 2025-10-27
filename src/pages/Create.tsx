@@ -28,7 +28,11 @@ export default function Create() {
     alert('Sparat!')
   }
 
-  const previewHTML = useMemo(() => marked.parse(content || ''), [content])
+  // Marked v12 kan vara async. Vi tvingar synkront läge och kastar till string.
+  const previewHTML = useMemo(
+    () => marked.parse(content || '', { async: false }) as string,
+    [content]
+  )
 
   return (
     <div className="p-4 space-y-4">
