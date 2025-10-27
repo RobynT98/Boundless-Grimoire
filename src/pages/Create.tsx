@@ -286,9 +286,6 @@ function autoTemplateFor(collectionId: string): TemplateKey {
   }
 }
 
-/** Om innehållet ser ut som HTML, rendera direkt – annars MD → HTML */
-const looksLikeHTML = (s: string) => /<\s*[a-z][\s\S]*>/i.test(s)
-
 export default function Create() {
   const [collections, setCollections] = useState<Collection[]>([])
   const [entries, setEntries] = useState<Entry[]>([])
@@ -358,11 +355,10 @@ export default function Create() {
     alert('Sparat!')
   }
 
+  // Alltid kör Markdown → HTML (marked släpper igenom rå HTML)
   const previewHTML = useMemo(() => {
     const v = content || ''
-    return looksLikeHTML(v)
-      ? v
-      : (marked.parse(v, { async: false }) as string)
+    return marked.parse(v, { async: false }) as string
   }, [content])
 
   async function onPickImages(files: FileList | null) {
