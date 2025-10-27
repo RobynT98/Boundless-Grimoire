@@ -4,7 +4,6 @@ import type { Collection, Entry, CollectionField } from '../types'
 import { uid } from '../utils'
 import { marked } from 'marked'
 
-// ---- Mall-nycklar (en per kategori + auto/none)
 type TemplateKey =
   | 'auto' | 'none'
   | 'demon' | 'god' | 'angel'
@@ -13,7 +12,6 @@ type TemplateKey =
   | 'rune' | 'healing' | 'curse' | 'spell' | 'ritual'
   | 'note'
 
-// ---- Malltext per nyckel (Markdown)
 const TEMPLATES: Record<TemplateKey, string> = {
   auto: '',
   none: '',
@@ -33,7 +31,6 @@ const TEMPLATES: Record<TemplateKey, string> = {
   note: `# Anteckning\n\n`
 }
 
-// Chip-metadata för UI
 const TEMPLATE_META: { key: TemplateKey; label: string; icon: string }[] = [
   { key: 'auto', label: 'Auto', icon: '✨' },
   { key: 'demon', label: 'Demon', icon: '👹' },
@@ -53,24 +50,23 @@ const TEMPLATE_META: { key: TemplateKey; label: string; icon: string }[] = [
   { key: 'none', label: 'Ingen', icon: '∅' }
 ]
 
-// Mappa samlings-id → lämplig mallnyckel (auto-läge)
 function autoTemplateFor(collectionId: string): TemplateKey {
   switch (collectionId) {
-    case 'demons': return 'demon'
-    case 'gods': return 'god'
-    case 'angels': return 'angel'
-    case 'nature': return 'natureSpirit'
-    case 'beings': return 'spirit'
-    case 'crystals': return 'crystal'
-    case 'herbs': return 'herb'
-    case 'aura': return 'aura'
-    case 'runes': return 'rune'
-    case 'healing': return 'healing'
-    case 'curses': return 'curse'
-    case 'spells': return 'spell'
-    case 'rituals': return 'ritual'
-    case 'notes': return 'note'
-    default: return 'none'
+    case 'demons':    return 'demon'
+    case 'gods':      return 'god'
+    case 'angels':    return 'angel'
+    case 'spirits':   return 'natureSpirit'
+    case 'creatures': return 'spirit'
+    case 'crystals':  return 'crystal'
+    case 'herbs':     return 'herb'
+    case 'aura':      return 'aura'
+    case 'runes':     return 'rune'
+    case 'healing':   return 'healing'
+    case 'curses':    return 'curse'
+    case 'spells':    return 'spell'
+    case 'rituals':   return 'ritual'
+    case 'notes':     return 'note'
+    default:          return 'none'
   }
 }
 
@@ -93,7 +89,6 @@ export default function Create() {
     })()
   }, [])
 
-  // Initiera fält + automatisk mall vid byte av samling
   useEffect(() => {
     const c = collections.find(c => c.id === collectionId)
     if (!c) return
@@ -130,7 +125,6 @@ export default function Create() {
     }
     all.push(entry)
     await saveEntries(all)
-    // nollställ
     setTitle(''); setContent(''); setTags(''); setImages([]); setRelated([]); setTpl('auto')
     const c = collections.find(c => c.id === collectionId)
     const base: Record<string, any> = {}
@@ -164,7 +158,7 @@ export default function Create() {
     <div className="p-4 space-y-4">
       <h1>Ny post</h1>
 
-      {/* Snygg chip-rad för mallval */}
+      {/* mallar: chip-rad */}
       <div className="sticky -top-1 z-10">
         <div className="scroll-px-4 -mx-4 overflow-x-auto pb-1 no-scrollbar">
           <div className="inline-flex gap-2 px-4">
@@ -203,7 +197,7 @@ export default function Create() {
         {/* Dynamiska fält */}
         {activeCollection && activeCollection.fields.length > 0 && (
           <section className="card p-3">
-            <h2 className="mb-2">Fält</h2>
+            <h2 className="mb-2">Fält – {activeCollection.name}</h2>
             <div className="grid grid-cols-1 gap-3">
               {activeCollection.fields.map(f => (
                 <FieldInput
@@ -260,7 +254,6 @@ export default function Create() {
       <div className="mt-6 space-y-3">
         <h2>Förhandsvisning</h2>
 
-        {/* Visa sammanfattning av custom-fält */}
         {activeCollection && activeCollection.fields.length>0 && (
           <div className="card p-4">
             <h3 className="mb-2">Fält</h3>
@@ -310,7 +303,6 @@ function FieldInput({ field, value, onChange }: { field: CollectionField, value:
       <input type="date" className={common} value={value ?? ''} onChange={e=>onChange(e.target.value)} />
     </div>
   )
-  // default text
   return (
     <div>
       <label className="block text-sm mb-1">{field.label}</label>
