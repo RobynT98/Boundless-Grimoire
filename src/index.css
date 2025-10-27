@@ -195,3 +195,9 @@ input[type="text"], input[type="number"], input[type="date"] {
 
 /* Tabbar: aktiv etikett får lite fetstil för tydlighet */
 .tab-active .tab-label { font-weight: 600; }
+
+.font-system { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif; }
+.font-serif  { font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif; }
+.font-mono   { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+/* Liten “kalligrafisk” känsla – tar något som ofta finns */
+.font-callig { font-family: "Segoe Script", "Bradley Hand", "Comic Sans MS", "Apple Chancery", cursive; }
