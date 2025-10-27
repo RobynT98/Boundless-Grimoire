@@ -20,11 +20,21 @@ type Props = {
 const td = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
 
 export default function RichEditor({ value, onChange, placeholder }: Props) {
-  const initialHTML = useMemo(() => marked.parse(value || '', { async: false }) as string, [value])
+  // Rendera Markdown → HTML (för init/visual)
+  const initialHTML = useMemo(
+    () => marked.parse(value || '', { async: false }) as string,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  )
 
   const [mode, setMode] = useState<'md' | 'visual'>('md')
-  const [htmlShadow, setHtmlShadow] = useState<string>(initialHTML)
+  const modeRef = useRef<'md' | 'visual'>(mode)
+  useEffect(() => { modeRef.current = mode }, [mode])
 
+  // Textarea i MD-läge (för att kunna infoga text vid markör)
+  const mdRef = useRef<HTMLTextAreaElement>(null)
+
+  // TipTap
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -48,33 +58,52 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       },
     },
     onUpdate({ editor }) {
+      // Skriv bara tillbaka till markdown när vi ÄR i visual-läge
+      if (modeRef.current !== 'visual') return
       const html = editor.getHTML()
-      setHtmlShadow(html)
       const md = td.turndown(html)
-      onChange(md)
+      if (md !== value) onChange(md)
     },
   })
 
-  // textarea-ref för MD-läget (för att kunna infoga länk vid markören)
-  const mdRef = useRef<HTMLTextAreaElement>(null)
-
+  // Håll visual content i synk om value (MD) byts externt
   useEffect(() => {
-    const nextHTML = marked.parse(value || '', { async: false }) as string
-    setHtmlShadow(nextHTML)
-    if (editor && mode === 'visual' && editor.getHTML() !== nextHTML) {
-      editor.commands.setContent(nextHTML, false)
+    if (!editor) return
+    if (mode !== 'visual') return
+    const html = marked.parse(value || '', { async: false }) as string
+    if (editor.getHTML() !== html) {
+      editor.commands.setContent(html, false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
+  }, [value, mode, editor])
 
   function switchMode(next: 'md' | 'visual') {
     setMode(next)
     if (next === 'visual' && editor) {
-      editor.commands.setContent(marked.parse(value || '', { async: false }) as string, false)
+      // När vi går TILL visual – mata in aktuell MD som HTML
+      const html = marked.parse(value || '', { async: false }) as string
+      editor.commands.setContent(html, false)
     }
+    // När vi går TILL md gör vi inget; onUpdate har redan turndown:at.
   }
 
-  // ------- LÄNK (fungerar i båda lägen) -------
+  // ---------- Verktyg: gemensamt / MD / Visuell ----------
+  function insertAtCursor(el: HTMLTextAreaElement, snippet: string, selectStartOffset = 0, selectEndOffset = 0) {
+    const start = el.selectionStart ?? el.value.length
+    const end = el.selectionEnd ?? el.value.length
+    const before = el.value.slice(0, start)
+    const after = el.value.slice(end)
+    const next = before + snippet + after
+    onChange(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      const selStart = start + selectStartOffset
+      const selEnd = start + selectEndOffset
+      el.selectionStart = selStart
+      el.selectionEnd = selEnd
+    })
+  }
+
+  // Länk (VISUELL)
   function promptLinkVisual() {
     if (!editor) return
     const existing = editor.getAttributes('link').href as string | undefined
@@ -87,42 +116,45 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     }
   }
 
-  function insertAtCursor(el: HTMLTextAreaElement, snippet: string) {
-    const start = el.selectionStart ?? el.value.length
-    const end = el.selectionEnd ?? el.value.length
-    const before = el.value.slice(0, start)
-    const after = el.value.slice(end)
-    const next = before + snippet + after
-    onChange(next)
-    requestAnimationFrame(() => {
-      el.focus()
-      const pos = start + snippet.length
-      el.selectionStart = el.selectionEnd = pos
-    })
-  }
-
+  // Länk (MD): använd markerad text om sådan finns
   function promptLinkMarkdown() {
     const el = mdRef.current
     if (!el) return
-    const text = window.prompt('Text att visa:', '')
+    const hasSelection = (el.selectionStart ?? 0) !== (el.selectionEnd ?? 0)
+    const selectedText = hasSelection ? el.value.slice(el.selectionStart!, el.selectionEnd!) : ''
+
+    const text = hasSelection ? selectedText : (window.prompt('Text att visa:', '') ?? '')
     if (text === null) return
     const url = window.prompt('Länkadress (https://…):', 'https://')
     if (url === null || url.trim() === '') return
+
     const snippet = `[${text || 'länk'}](${url.trim()})`
-    insertAtCursor(el, snippet)
+    // Om vi hade markerat text – ersätt markeringen, annars infoga vid markör.
+    if (hasSelection) {
+      const start = el.selectionStart!
+      const end = el.selectionEnd!
+      const before = el.value.slice(0, start)
+      const after = el.value.slice(end)
+      const next = before + snippet + after
+      onChange(next)
+      requestAnimationFrame(() => {
+        el.focus()
+        const pos = before.length + snippet.length
+        el.selectionStart = el.selectionEnd = pos
+      })
+    } else {
+      insertAtCursor(el, snippet)
+    }
   }
 
   function handleLinkClick() {
     if (mode === 'visual') promptLinkVisual()
     else promptLinkMarkdown()
   }
-  // -------------------------------------------
 
-  // Övrig toolbar (visual)
+  // Bild (VISUELL/MD)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  async function pickImage(e?: React.ChangeEvent<HTMLInputElement>) {
-    if (!editor) return
-    const files = e?.target?.files
+  async function onPickImages(files: FileList | null) {
     if (!files || files.length === 0) return
     const arr = await Promise.all(
       Array.from(files).map(
@@ -134,8 +166,17 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
           })
       )
     )
-    editor.chain().focus()
-    arr.forEach(src => editor.chain().setImage({ src }).run())
+    if (mode === 'visual' && editor) {
+      editor.chain().focus()
+      arr.forEach(src => editor.chain().setImage({ src }).run())
+    } else if (mode === 'md' && mdRef.current) {
+      // Infoga som markdown-bilder
+      const el = mdRef.current
+      for (const src of arr) {
+        const snippet = `![bild](${src})`
+        insertAtCursor(el, snippet)
+      }
+    }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -164,6 +205,8 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
   // Hjälp-popup (diskret)
   const [showHelp, setShowHelp] = useState(false)
 
+  const editorReady = !!editor
+
   return (
     <div className="space-y-2">
       {/* Topbar – alltid synlig */}
@@ -182,14 +225,32 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
             className={`btn ${mode === 'visual' ? 'btn-active' : ''}`}
             onClick={() => switchMode('visual')}
             aria-pressed={mode === 'visual'}
+            disabled={!editorReady}
+            title={editorReady ? '' : 'Initierar editor…'}
           >
             Visuell
           </button>
         </div>
 
-        {/* Alltid: Länk + Hjälp (diskret) */}
+        {/* Alltid: Länk + Hjälp */}
         <button type="button" className="btn" onClick={handleLinkClick} title="Infoga länk">
           🔗 Länk
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          onChange={e => onPickImages(e.target.files)}
+        />
+        <button
+          type="button"
+          className="btn"
+          onClick={() => fileInputRef.current?.click()}
+          title="Infoga bild"
+        >
+          🖼️ Bild
         </button>
         <button
           type="button"
@@ -202,7 +263,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
         </button>
       </div>
 
-      {/* Liten hjälp-panel, bara i MD-läget och när togglad */}
+      {/* Liten hjälp – visas bara i MD-läget när togglad */}
       {mode === 'md' && showHelp && (
         <div className="text-xs text-muted border border-app rounded p-2 bg-panel">
           <div className="mb-1 font-semibold">Markdown-kortkommandon</div>
@@ -220,21 +281,16 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       {/* Toolbar för VISUELLT läge */}
       {mode === 'visual' && (
         <div className="flex items-center gap-2 flex-wrap">
-          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button>
-          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
-          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button>
+          <button type="button" className="btn" disabled={!editorReady} onClick={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button>
+          <button type="button" className="btn" disabled={!editorReady} onClick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
+          <button type="button" className="btn" disabled={!editorReady} onClick={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button>
 
-          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleBulletList().run()}>• Lista</button>
-          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1. Lista</button>
+          <button type="button" className="btn" disabled={!editorReady} onClick={() => editor?.chain().focus().toggleBulletList().run()}>• Lista</button>
+          <button type="button" className="btn" disabled={!editorReady} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1. Lista</button>
 
-          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
-          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleBlockquote().run()}>❝</button>
-
-          {/* Länk hanteras via handleLinkClick så samma knapp funkar i båda lägen */}
-          {/* Bild */}
-          <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={pickImage}/>
-          <button type="button" className="btn" onClick={() => fileInputRef.current?.click()}>Bild</button>
+          <button type="button" className="btn" disabled={!editorReady} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+          <button type="button" className="btn" disabled={!editorReady} onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+          <button type="button" className="btn" disabled={!editorReady} onClick={() => editor?.chain().focus().toggleBlockquote().run()}>❝</button>
 
           <label className="btn">
             Färg
@@ -246,6 +302,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
             onChange={(e) => setFont(e.target.value)}
             defaultValue="system"
             title="Typsnitt"
+            disabled={!editorReady}
           >
             <option value="system">System</option>
             <option value="serif">Serif</option>
