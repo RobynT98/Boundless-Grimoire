@@ -1,15 +1,13 @@
-// src/pages/Search.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { getCollections, getEntries } from '../db'
 import type { Collection, Entry } from '../types'
 import { Link, useSearchParams } from 'react-router-dom'
 import { marked } from 'marked'
 
-/* Samma helper som i Home — håll i synk! */
+/* ---------- MD/HTML → ren text (för snippets) ---------- */
 function mdToPlain(mdOrHtml: string, title?: string): string {
   const raw = mdOrHtml || ''
-  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
-  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
+  const html = marked.parse(raw, { async: false }) as string
 
   if (typeof window === 'undefined') {
     let txt = html.replace(/<[^>]+>/g, ' ')
