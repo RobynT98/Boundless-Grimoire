@@ -19,24 +19,26 @@ type Props = {
 
 /** Turndown – behåll stilad text som rå HTML inuti MD */
 const td = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
-// behåll taggarna u/mark som rå HTML
 td.keep(['u', 'mark'])
-// behåll span med färg/typsnitt
+
+/** Behåll <span style="color:...; font-family:...">...</span> när vi turndown:ar från WYSIWYG */
 td.addRule('preserveStyledSpan', {
-  filter: (node) => {
-    if (!(node instanceof HTMLElement)) return false
-    if (node.tagName !== 'SPAN') return false
-    const style = node.getAttribute('style') || ''
-    return /color\s*:|font-family\s*:/.test(style)
+  filter(node: Node): boolean {
+    const el = node as HTMLElement
+    if (!(el instanceof HTMLElement)) return false
+    if (el.tagName !== 'SPAN') return false
+    const style = el.getAttribute('style') ?? ''
+    return /(?:^|;)\s*(color|font-family)\s*:/.test(style)
   },
-  replacement: (content, node) => {
-    const style = (node as HTMLElement).getAttribute('style') || ''
+  replacement(content: string, node: Node): string {
+    const el = node as HTMLElement
+    const style = el.getAttribute('style') ?? ''
     return `<span style="${style}">${content}</span>`
-  }
+  },
 })
 
 export default function RichEditor({ value, onChange, placeholder }: Props) {
-  // Initial MD → HTML (vi fyller ändå på vid mode-byte)
+  // Initial MD → HTML (vid visuell-läge laddar vi in detta)
   const initialHTML = useMemo(
     () => marked.parse(value || '', { async: false }) as string,
     []
@@ -46,10 +48,10 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
   const modeRef = useRef<'md' | 'visual'>(mode)
   useEffect(() => { modeRef.current = mode }, [mode])
 
-  // MD-textarea (för infoga vid markör)
+  // Textarea-referens i MD-läge
   const mdRef = useRef<HTMLTextAreaElement>(null)
 
-  // TipTap
+  // TipTap-editor
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -73,6 +75,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       },
     },
     onUpdate({ editor }) {
+      // Skriv bara tillbaka till markdown när vi är i visuellt läge
       if (modeRef.current !== 'visual') return
       const html = editor.getHTML()
       const md = td.turndown(html)
@@ -80,7 +83,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     },
   })
 
-  // --- Stored marks helpers (hindrar IME från att nolla stil när du fortsätter skriva) ---
+  // --- Stored marks helpers: se till att färg/typsnitt sitter kvar för ny text ---
   function addStoredTextStyle(attrs: { color?: string; fontFamily?: string | null }) {
     if (!editor) return
     const { state, view } = editor
@@ -96,7 +99,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     view.dispatch(state.tr.setStoredMarks([]))
   }
 
-  // Håll visual i synk om MD ändras externt
+  // Håll visual i synk om MD ändras utifrån
   useEffect(() => {
     if (!editor || mode !== 'visual') return
     const html = marked.parse(value || '', { async: false }) as string
@@ -200,7 +203,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // Färg & Typsnitt – lägg även som stored mark (så stilen “hänger kvar”)
+  // Färg & Typsnitt – även som stored mark (så stilen “hänger kvar”)
   function setColor(ev: React.ChangeEvent<HTMLInputElement>) {
     if (!editor) return
     const v = ev.target.value
