@@ -13,7 +13,7 @@ import FontFamily from '@tiptap/extension-font-family'
 
 type Props = {
   value: string
-  onChange: (markdown: string) => void
+  onChange: (next: string) => void // kan vara MD eller HTML beroende på läge
   placeholder?: string
 }
 
@@ -24,7 +24,7 @@ function normalizeHtml(html: string): string {
   const wrap = document.createElement('div')
   wrap.innerHTML = html
 
-  // Normalisera style-attribut så browsern skriver om cssText (tar bort trasiga citationstecken)
+  // Normalisera style-attribut så browsern skriver om cssText
   wrap.querySelectorAll<HTMLElement>('span[style]').forEach(el => {
     el.setAttribute('style', el.style.cssText)
   })
@@ -97,11 +97,10 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       },
     },
     onUpdate({ editor }) {
-      // Skriv tillbaka till MD bara i visuellt läge
+      // I VISUELLT läge sparar vi HTML direkt → inga \-artefakter.
       if (modeRef.current !== 'visual') return
       const html = normalizeHtml(editor.getHTML())
-      const md = td.turndown(html)
-      if (md !== value) onChange(md)
+      if (html !== value) onChange(html)
     },
   })
 
@@ -121,7 +120,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     view.dispatch(state.tr.setStoredMarks([]))
   }
 
-  // Håll visual i synk om MD ändras utifrån
+  // Håll VISUELLT i synk om value ändras utifrån
   useEffect(() => {
     if (!editor || mode !== 'visual') return
     const v = value || ''
@@ -131,8 +130,17 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
   }, [value, mode, editor])
 
   function switchMode(next: 'md' | 'visual') {
+    if (next === 'md' && editor) {
+      // Visual → MD: turndown en gång och spara MD
+      const html = normalizeHtml(editor.getHTML())
+      const md = td.turndown(html)
+      onChange(md)
+    }
+
     setMode(next)
+
     if (next === 'visual' && editor) {
+      // MD → Visual: parse en gång och sätt innehållet
       const v = value || ''
       const raw = looksLikeHTML(v) ? v : (marked.parse(v, { async: false }) as string)
       const html = normalizeHtml(raw)
