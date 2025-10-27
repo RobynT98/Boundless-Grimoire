@@ -20,7 +20,8 @@ export interface Entry {
   title: string;
   contentMD: string;
   tags: string[];
-  images: string[];
+  images: string[];                // dataURL: enkla inline-bilder (räcker fint i IndexedDB)
+  relatedIds: string[];            // relationer till andra poster
   custom: Record<string, string | number | boolean | null>;
   createdAt: number;
   updatedAt: number;
