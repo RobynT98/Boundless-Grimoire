@@ -184,7 +184,6 @@ export default function EntryView() {
                 {activeCollection.fields.map(f => (
                   <div key={f.key}>
                     <label className="block text-sm text-muted mb-1">{f.label}</label>
-                    {/* typer */}
                     {f.type === 'longtext' ? (
                       <textarea
                         rows={4}
