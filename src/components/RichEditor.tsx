@@ -1,153 +1,204 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { marked } from 'marked'
+import TurndownService from 'turndown'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
-import Underline from '@tiptap/extension-underline'
 import TextStyle from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
-import Placeholder from '@tiptap/extension-placeholder'
-import { Markdown } from 'tiptap-markdown'
+import Highlight from '@tiptap/extension-highlight'
+import FontFamily from '@tiptap/extension-font-family'
 
-type Mode = 'md' | 'visual'
-
-export default function RichEditor({
-  value,
-  onChange,
-  placeholder = 'Skriv här…'
-}: {
+type Props = {
   value: string
-  onChange: (md: string) => void
+  onChange: (markdown: string) => void
   placeholder?: string
-}) {
-  const [mode, setMode] = useState<Mode>('md')
-  const [md, setMd] = useState(value)
+}
 
+const td = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
+
+export default function RichEditor({ value, onChange, placeholder }: Props) {
+  // “Källa” för visningen i VY-läget
+  const initialHTML = useMemo(() => marked.parse(value || '', { async: false }) as string, [value])
+
+  const [mode, setMode] = useState<'md' | 'visual'>('md')
+  const [htmlShadow, setHtmlShadow] = useState<string>(initialHTML)
+
+  // TipTap editor
   const editor = useEditor({
     extensions: [
       StarterKit,
       Underline,
       TextStyle,
-      Color,
-      Link.configure({ openOnClick: false }),
-      Image,
-      Placeholder.configure({ placeholder }),
-      Markdown.configure({ html: false })
+      FontFamily,
+      Color.configure({ types: ['textStyle'] }),
+      Highlight,
+      Link.configure({
+        openOnClick: true,
+        autolink: true,
+        defaultProtocol: 'https',
+      }),
+      Image.configure({ allowBase64: true }),
     ],
+    content: initialHTML || `<p class="text-muted">${placeholder || ''}</p>`,
     editorProps: {
       attributes: {
         class:
-          'prose prose-invert max-w-none min-h-[220px] p-3 rounded bg-neutral-900'
-      }
+          'min-h-[180px] p-3 rounded border border-app outline-none bg-panel prose max-w-none',
+      },
     },
-    content: '',
-    autofocus: false,
     onUpdate({ editor }) {
-      if (mode === 'visual') {
-        const nextMd = (editor.storage as any).markdown.getMarkdown()
-        onChange(nextMd)
-      }
-    }
+      // Uppdatera markdown varje gång i visual-läget
+      const html = editor.getHTML()
+      setHtmlShadow(html)
+      const md = td.turndown(html)
+      onChange(md)
+    },
   })
 
-  // sync in (om parent uppdaterar value)
+  // När parent ändrar value (t.ex. välj mall), synka in i visuellt läge
   useEffect(() => {
-    setMd(value)
-    if (mode === 'visual' && editor) {
-      const parse = (editor.storage as any).markdown?.setMarkdown
-      parse?.(value)
+    const nextHTML = marked.parse(value || '', { async: false }) as string
+    setHtmlShadow(nextHTML)
+    if (editor && mode === 'visual' && editor.getHTML() !== nextHTML) {
+      editor.commands.setContent(nextHTML, false)
     }
-  }, [value]) // eslint-disable-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
 
-  function switchMode(next: Mode) {
-    if (next === mode) return
-    if (next === 'visual' && editor) {
-      // MD -> TipTap
-      const parse = (editor.storage as any).markdown?.setMarkdown
-      parse?.(md)
-    } else if (next === 'md' && editor) {
-      // TipTap -> MD
-      const getMd = (editor.storage as any).markdown?.getMarkdown
-      const out = getMd?.() ?? md
-      setMd(out)
-      onChange(out)
-    }
+  // Växla läge
+  function switchMode(next: 'md' | 'visual') {
     setMode(next)
+    if (next === 'visual' && editor) {
+      editor.commands.setContent(marked.parse(value || '', { async: false }) as string, false)
+    }
+  }
+
+  // Toolbar-handlers
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function promptLink() {
+    if (!editor) return
+    const existing = editor.getAttributes('link').href as string | undefined
+    const url = window.prompt('Länkadress (https://…):', existing || '')
+    if (url === null) return
+    if (url === '') {
+      editor.chain().focus().unsetLink().run()
+    } else {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    }
+  }
+
+  async function pickImage(e?: React.ChangeEvent<HTMLInputElement>) {
+    if (!editor) return
+    const files = e?.target?.files
+    if (!files || files.length === 0) return
+    const arr = await Promise.all(
+      Array.from(files).map(
+        f =>
+          new Promise<string>((res) => {
+            const r = new FileReader()
+            r.onload = () => res(r.result as string)
+            r.readAsDataURL(f)
+          })
+      )
+    )
+    editor.chain().focus()
+    arr.forEach(src => editor.chain().setImage({ src }).run())
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function setColor(ev: React.ChangeEvent<HTMLInputElement>) {
+    if (!editor) return
+    editor.chain().focus().setColor(ev.target.value).run()
+  }
+
+  function setFont(family: string) {
+    if (!editor) return
+    if (family === 'system') editor.chain().focus().unsetFontFamily().run()
+    else editor.chain().focus().setFontFamily(resolveFontFamily(family)).run()
+  }
+
+  function resolveFontFamily(key: string) {
+    switch (key) {
+      case 'serif': return 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif'
+      case 'mono': return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+      case 'callig': return '"Segoe Script","Bradley Hand","Comic Sans MS","Apple Chancery",cursive'
+      default: return 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif'
+    }
   }
 
   return (
     <div className="space-y-2">
-      {/* Växla läge */}
-      <div className="inline-flex rounded overflow-hidden border border-app">
+      {/* Mode-toggle */}
+      <div className="inline-flex gap-2">
         <button
           type="button"
-          className={'px-3 py-1 ' + (mode === 'md' ? 'btn-active' : 'btn')}
+          className={`btn ${mode==='md' ? 'btn-active' : ''}`}
           onClick={() => switchMode('md')}
         >
           Markdown
         </button>
         <button
           type="button"
-          className={'px-3 py-1 ' + (mode === 'visual' ? 'btn-active' : 'btn')}
+          className={`btn ${mode==='visual' ? 'btn-active' : ''}`}
           onClick={() => switchMode('visual')}
         >
           Visuell
         </button>
       </div>
 
-      {/* Toolbar (visuell) */}
-      {mode === 'visual' && editor && (
-        <div className="flex flex-wrap gap-1">
-          <TBtn on={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')}>B</TBtn>
-          <TBtn on={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')}><i>I</i></TBtn>
-          <TBtn on={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')}><u>U</u></TBtn>
-          <TBtn on={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')}>• Lista</TBtn>
-          <TBtn on={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')}>1. Lista</TBtn>
-          <TBtn on={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })}>H2</TBtn>
+      {/* Toolbar (endast i visuellt läge) */}
+      {mode === 'visual' && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button>
+          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
+          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button>
 
-          <input
-            type="color"
-            className="w-8 h-8 rounded border border-app"
-            aria-label="Textfärg"
-            onChange={e => editor.chain().focus().setColor(e.target.value).run()}
-          />
+          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleBulletList().run()}>• Lista</button>
+          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1. Lista</button>
 
-          <TBtn on={() => {
-            const url = prompt('Länkadress (https://)…')
-            if (url) editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-          }}>Länk</TBtn>
+          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+          <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleBlockquote().run()}>❝</button>
 
-          <TBtn on={() => {
-            const url = prompt('Bildadress eller data-URL:')
-            if (url) editor.chain().focus().setImage({ src: url }).run()
-          }}>Bild</TBtn>
+          <button type="button" className="btn" onClick={promptLink}>Länk</button>
+
+          <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={pickImage}/>
+          <button type="button" className="btn" onClick={() => fileInputRef.current?.click()}>Bild</button>
+
+          <label className="btn">
+            Färg
+            <input type="color" onChange={setColor} className="ml-2 h-5 w-8 p-0 border border-app rounded bg-transparent" />
+          </label>
+
+          <select
+            className="input !p-1 !h-9 !w-auto"
+            onChange={(e) => setFont(e.target.value)}
+            defaultValue="system"
+            title="Typsnitt"
+          >
+            <option value="system">System</option>
+            <option value="serif">Serif</option>
+            <option value="mono">Mono</option>
+            <option value="callig">Calligraphic</option>
+          </select>
         </div>
       )}
 
-      {/* Editor */}
-      {mode === 'md' ? (
-        <textarea
-          value={md}
-          onChange={e => { setMd(e.target.value); onChange(e.target.value) }}
-          rows={12}
-          className="w-full bg-neutral-900 p-3 rounded"
-          placeholder={placeholder}
-        />
-      ) : (
+      {/* Editor / Textarea */}
+      {mode === 'visual' ? (
         <EditorContent editor={editor} />
+      ) : (
+        <textarea
+          className="input min-h-[220px]"
+          placeholder={placeholder || 'Markdown eller visuellt – välj vad som känns bäst.'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
       )}
     </div>
-  )
-}
-
-function TBtn({ on, children, active }: { on: () => void; children: any; active?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={on}
-      className={'px-2 py-1 rounded text-sm ' + (active ? 'btn-active' : 'btn')}
-    >
-      {children}
-    </button>
   )
 }
