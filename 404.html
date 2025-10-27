@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="refresh" content="0; url=/Boundless-Grimoire/">
+  </head>
+  <body>
+    <script>
+      // Redirect all subpaths back to root for SPA routing
+      const l = window.location;
+      const repo = '/Boundless-Grimoire/';
+      if (!l.pathname.includes(repo)) {
+        window.location.replace(repo);
+      } else {
+        const redirect = repo + '#' + l.pathname.replace(repo, '');
+        window.location.replace(redirect);
+      }
+    </script>
+  </body>
+</html>
