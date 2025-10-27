@@ -38,7 +38,11 @@ export default function EntryView() {
     }
   }
 
-  const html = useMemo(() => marked.parse(entry?.contentMD || ''), [entry])
+  // Samma grej här: tvinga synkront parse och kasta till string.
+  const html = useMemo(
+    () => marked.parse(entry?.contentMD || '', { async: false }) as string,
+    [entry]
+  )
 
   if (!entry) return <div className="p-4">Hittar inte posten.</div>
 
