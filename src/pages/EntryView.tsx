@@ -5,6 +5,9 @@ import type { Entry, Collection } from '../types'
 import { marked } from 'marked'
 import RichEditor from '../components/RichEditor'
 
+/** Om innehållet ”ser ut som HTML”, rendera det direkt – annars MD → HTML */
+const looksLikeHTML = (s: string) => /<\s*[a-z][\s\S]*>/i.test(s)
+
 export default function EntryView() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -68,17 +71,19 @@ export default function EntryView() {
     navigate('/search')
   }
 
-  // Markdown → HTML (visa entry-läge; i edit visar vi fälten istället)
-  const html = useMemo(
-    () => marked.parse(entry?.contentMD || '', { async: false }) as string,
-    [entry]
-  )
+  // Markdown/HTML → HTML för visningsläge
+  const html = useMemo(() => {
+    const raw = entry?.contentMD || ''
+    return looksLikeHTML(raw)
+      ? raw
+      : (marked.parse(raw, { async: false }) as string)
+  }, [entry])
 
   if (!entry) {
     return (
       <div className="p-4 space-y-2">
         <p>Hittar inte posten.</p>
-        <Link to="/search" className="btn btn-secondary">← Tillbaka</Link>
+        <Link to="/search" className="btn btn-secondary min-h-[44px] text-[16px]">← Tillbaka</Link>
       </div>
     )
   }
@@ -89,7 +94,7 @@ export default function EntryView() {
     .filter(Boolean) as Entry[]
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 text-[16px]">
       {!isEdit ? (
         <>
           <div className="text-sm text-muted flex items-center gap-2">
@@ -152,9 +157,9 @@ export default function EntryView() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            <button className="btn btn-primary" onClick={() => setIsEdit(true)}>Redigera</button>
-            <button className="btn btn-secondary" onClick={() => navigate(-1)}>Tillbaka</button>
-            <button className="btn" onClick={remove}>Ta bort</button>
+            <button className="btn btn-primary min-h-[44px]" onClick={() => setIsEdit(true)}>Redigera</button>
+            <button className="btn btn-secondary min-h-[44px]" onClick={() => navigate(-1)}>Tillbaka</button>
+            <button className="btn min-h-[44px]" onClick={remove}>Ta bort</button>
           </div>
         </>
       ) : (
@@ -162,7 +167,7 @@ export default function EntryView() {
           <input
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="input"
+            className="input text-[16px] min-h-[44px]"
             placeholder="Titel"
           />
 
@@ -172,7 +177,7 @@ export default function EntryView() {
           <input
             value={tags}
             onChange={e => setTags(e.target.value)}
-            className="input"
+            className="input text-[16px] min-h-[44px]"
             placeholder="tagg1, tagg2, …"
           />
 
@@ -187,27 +192,27 @@ export default function EntryView() {
                     {f.type === 'longtext' ? (
                       <textarea
                         rows={4}
-                        className="input"
+                        className="input text-[16px] min-h-[44px]"
                         value={custom[f.key] ?? ''}
                         onChange={e => setCustom(prev => ({ ...prev, [f.key]: e.target.value }))}
                       />
                     ) : f.type === 'number' ? (
                       <input
                         type="number"
-                        className="input"
+                        className="input text-[16px] min-h-[44px]"
                         value={custom[f.key] ?? ''}
                         onChange={e => setCustom(prev => ({ ...prev, [f.key]: Number(e.target.value) }))}
                       />
                     ) : f.type === 'date' ? (
                       <input
                         type="date"
-                        className="input"
+                        className="input text-[16px] min-h-[44px]"
                         value={custom[f.key] ?? ''}
                         onChange={e => setCustom(prev => ({ ...prev, [f.key]: e.target.value }))}
                       />
                     ) : f.type === 'select' ? (
                       <select
-                        className="input"
+                        className="input text-[16px] min-h-[44px]"
                         value={custom[f.key] ?? ''}
                         onChange={e => setCustom(prev => ({ ...prev, [f.key]: e.target.value }))}
                       >
@@ -218,7 +223,7 @@ export default function EntryView() {
                       </select>
                     ) : (
                       <input
-                        className="input"
+                        className="input text-[16px] min-h-[44px]"
                         value={custom[f.key] ?? ''}
                         onChange={e => setCustom(prev => ({ ...prev, [f.key]: e.target.value }))}
                       />
@@ -239,8 +244,8 @@ export default function EntryView() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            <button className="btn btn-primary" onClick={save}>Spara</button>
-            <button className="btn" onClick={() => setIsEdit(false)}>Avbryt</button>
+            <button className="btn btn-primary min-h-[44px]" onClick={save}>Spara</button>
+            <button className="btn min-h-[44px]" onClick={() => setIsEdit(false)}>Avbryt</button>
           </div>
         </div>
       )}
