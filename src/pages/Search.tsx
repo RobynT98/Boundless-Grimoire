@@ -1,7 +1,22 @@
+// src/pages/Search.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { getCollections, getEntries } from '../db'
 import type { Collection, Entry } from '../types'
 import { Link, useSearchParams } from 'react-router-dom'
+import { marked } from 'marked'
+
+// Samma snippet-hjälp som i Home
+function mdToPlain(mdOrHtml: string): string {
+  const raw = mdOrHtml || ''
+  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
+  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
+  if (typeof window === 'undefined') {
+    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  }
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim()
+}
 
 export default function Search() {
   const [q, setQ] = useState('')
@@ -69,7 +84,9 @@ export default function Search() {
 
       <div className="grid grid-cols-1 gap-3">
         {results.map(e => {
-          const snippet = (e.contentMD || '').replace(/\s+/g, ' ').slice(0, 140)
+          const plain = mdToPlain(e.contentMD)
+          const snippet = plain.slice(0, 140)
+
           return (
             <Link
               to={`/entry/${e.id}`}
@@ -95,7 +112,7 @@ export default function Search() {
 
               {snippet && (
                 <p className="mt-2 text-sm text-muted">
-                  {snippet}{e.contentMD.length > 140 ? '…' : ''}
+                  {snippet}{plain.length > 140 ? '…' : ''}
                 </p>
               )}
             </Link>
