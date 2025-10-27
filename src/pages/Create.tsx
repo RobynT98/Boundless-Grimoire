@@ -286,7 +286,7 @@ function autoTemplateFor(collectionId: string): TemplateKey {
   }
 }
 
-/** Om innehållet ”ser ut som HTML”, rendera det direkt – annars MD → HTML */
+/** Om innehållet ser ut som HTML, rendera direkt – annars MD → HTML */
 const looksLikeHTML = (s: string) => /<\s*[a-z][\s\S]*>/i.test(s)
 
 export default function Create() {
@@ -345,7 +345,12 @@ export default function Create() {
     }
     all.push(entry)
     await saveEntries(all)
-    setTitle(''); setContent(''); setTags(''); setImages([]); setRelated([]); setTpl('auto')
+    setTitle('')
+    setContent('')
+    setTags('')
+    setImages([])
+    setRelated([])
+    setTpl('auto')
     const c = collections.find(c => c.id === collectionId)
     const base: Record<string, any> = {}
     c?.fields.forEach(f => { base[f.key] = '' })
