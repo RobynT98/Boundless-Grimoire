@@ -17,15 +17,17 @@ export default function Search() {
       setEntries(await getEntries())
     })()
   }, [])
-  useEffect(() => { if (preselect) setCollectionId(preselect) }, [preselect])
+
+  useEffect(() => {
+    if (preselect) setCollectionId(preselect)
+  }, [preselect])
 
   const results = useMemo(() => {
     const text = q.trim().toLowerCase()
     const list = entries.filter(e => {
       if (collectionId && e.collectionId !== collectionId) return false
       if (!text) return true
-      const hay =
-        `${e.title}\n${e.contentMD}\n${(e.tags || []).join(' ')}`.toLowerCase()
+      const hay = `${e.title}\n${e.contentMD}\n${(e.tags || []).join(' ')}`.toLowerCase()
       return hay.includes(text)
     })
     return list.sort((a, b) => b.updatedAt - a.updatedAt)
@@ -34,26 +36,30 @@ export default function Search() {
   const colName = (id: string) => collections.find(c => c.id === id)?.name || 'Okänd'
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 space-y-3 text-[16px]">
       <h1>Sök</h1>
 
-      <input
-        value={q}
-        onChange={e => setQ(e.target.value)}
-        placeholder="Sök titel, text, taggar..."
-        className="input"
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          placeholder="Sök titel, text, taggar..."
+          className="input text-[16px]"
+          aria-label="Sökfält"
+        />
 
-      <select
-        value={collectionId}
-        onChange={e => setCollectionId(e.target.value)}
-        className="input"
-      >
-        <option value="">Alla samlingar</option>
-        {collections.map(c => (
-          <option key={c.id} value={c.id}>{c.name}</option>
-        ))}
-      </select>
+        <select
+          value={collectionId}
+          onChange={e => setCollectionId(e.target.value)}
+          className="input text-[16px]"
+          aria-label="Filtrera efter samling"
+        >
+          <option value="">Alla samlingar</option>
+          {collections.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
 
       <div className="text-muted text-sm">
         {results.length} {results.length === 1 ? 'träff' : 'träffar'}
@@ -65,14 +71,22 @@ export default function Search() {
         {results.map(e => {
           const snippet = (e.contentMD || '').replace(/\s+/g, ' ').slice(0, 140)
           return (
-            <Link to={`/entry/${e.id}`} key={e.id} className="card p-4 hover:brightness-110 transition">
+            <Link
+              to={`/entry/${e.id}`}
+              key={e.id}
+              className="card p-4 hover:brightness-110 transition focus:outline-none focus:ring-2 focus:ring-offset-0"
+              aria-label={`${e.title} – öppna posten`}
+            >
               <div className="text-xs text-muted">{colName(e.collectionId)}</div>
               <h2 className="font-semibold">{e.title}</h2>
 
               {e.tags?.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {e.tags.slice(0, 5).map(t => (
-                    <span key={t} className="px-2 py-0.5 rounded text-[11px] border-app border text-main">
+                    <span
+                      key={t}
+                      className="px-2 py-0.5 rounded text-[12px] border-app border text-main"
+                    >
                       #{t}
                     </span>
                   ))}
@@ -80,7 +94,9 @@ export default function Search() {
               )}
 
               {snippet && (
-                <p className="mt-2 text-sm text-muted">{snippet}{e.contentMD.length > 140 ? '…' : ''}</p>
+                <p className="mt-2 text-sm text-muted">
+                  {snippet}{e.contentMD.length > 140 ? '…' : ''}
+                </p>
               )}
             </Link>
           )
