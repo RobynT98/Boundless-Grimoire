@@ -33,7 +33,7 @@ export default function Home() {
     ;(async () => {
       setCollections(await getCollections())
       const list = await getEntries()
-      const sorted = list.sort((a,b) => b.updatedAt - a.updatedAt).slice(0, 8)
+      const sorted = [...list].sort((a,b) => b.updatedAt - a.updatedAt).slice(0, 8)
       setRecent(sorted)
     })()
   }, [])
@@ -46,55 +46,61 @@ export default function Home() {
 
   return (
     <div className="p-4 space-y-5">
-      <header>
+      <header className="space-y-1">
         <h1>Boundless Grimoire</h1>
-        <p className="text-neutral-300">
+        <p className="text-muted">
           Ditt modulära, offline-först uppslagsverk i grimoire-stil.
         </p>
       </header>
 
       {/* Snabbgenvägar */}
       <nav className="flex gap-2">
-        <Link to="/create" className="px-3 py-2 rounded bg-amber-600 hover:bg-amber-700">+ Ny post</Link>
-        <Link to="/library" className="px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700">Bibliotek</Link>
-        <Link to="/search" className="px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700">Sök</Link>
+        <Link to="/create" className="btn btn-primary">+ Ny post</Link>
+        <Link to="/library" className="btn btn-secondary">Bibliotek</Link>
+        <Link to="/search" className="btn btn-secondary">Sök</Link>
       </nav>
 
       {/* Senast uppdaterade */}
-      <section className="space-y-2">
+      <section className="section space-y-3">
         <h2>Senast uppdaterade</h2>
-        {recent.length === 0 && (
-          <div className="text-neutral-400">
+
+        {recent.length === 0 ? (
+          <div className="text-muted">
             Inga poster ännu. Skapa din första via <b>Skapa</b>.
           </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-3">
-          {recent.map(e => {
-            const col = colMap.get(e.collectionId)
-            const subtitle = entrySubtitle(e)
-            const snippet = (e.contentMD || '').slice(0, 160)
-            return (
-              <Link key={e.id} to={`/entry/${e.id}`} className="card p-4 hover:brightness-110 transition">
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">{col?.icon || '📄'}</div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold truncate">{e.title}</h3>
-                      <span className="text-[11px] px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
-                        {col?.name || 'Okänd'}
-                      </span>
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
+            {recent.map(e => {
+              const col = colMap.get(e.collectionId)
+              const subtitle = entrySubtitle(e)
+              const snippet = (e.contentMD || '').slice(0, 160)
+              return (
+                <Link
+                  key={e.id}
+                  to={`/entry/${e.id}`}
+                  className="card p-4 hover:brightness-110 transition"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">{col?.icon || '📄'}</div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold truncate">{e.title}</h3>
+                        <span className="text-[11px] px-2 py-0.5 rounded border-app"
+                              style={{ background: 'var(--panel)', borderWidth: 1, color: 'var(--text)' }}>
+                          {col?.name || 'Okänd'}
+                        </span>
+                      </div>
+                      {subtitle && (
+                        <div className="text-xs text-muted mt-0.5 truncate">{subtitle}</div>
+                      )}
+                      <p className="text-sm text-main mt-1 line-clamp-2">{snippet}</p>
                     </div>
-                    {subtitle && (
-                      <div className="text-xs text-neutral-400 mt-0.5 truncate">{subtitle}</div>
-                    )}
-                    <p className="text-sm text-neutral-300 mt-1 line-clamp-2">{snippet}</p>
                   </div>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
       </section>
     </div>
   )
