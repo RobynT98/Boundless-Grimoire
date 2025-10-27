@@ -15,21 +15,15 @@ export default function Library() {
     })()
   }, [])
 
-  // antal per samling
   const counts = useMemo(() => {
     const map = new Map<string, number>()
-    for (const e of entries) {
-      map.set(e.collectionId, (map.get(e.collectionId) || 0) + 1)
-    }
+    for (const e of entries) map.set(e.collectionId, (map.get(e.collectionId) || 0) + 1)
     return map
   }, [entries])
 
-  // upp till 2 senaste titlar per samling
   const recentByCollection = useMemo(() => {
     const grouped: Record<string, Entry[]> = {}
-    for (const e of entries) {
-      (grouped[e.collectionId] ||= []).push(e)
-    }
+    for (const e of entries) (grouped[e.collectionId] ||= []).push(e)
     for (const k of Object.keys(grouped)) {
       grouped[k] = grouped[k].sort((a,b)=>b.updatedAt - a.updatedAt).slice(0,2)
     }
