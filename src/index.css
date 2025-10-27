@@ -26,3 +26,4 @@ html, body, #root { height: 100%; }
 
 h1 { @apply text-2xl font-semibold; }
 h2 { @apply text-xl font-semibold; }
+.prose :where(h1,h2,h3){ font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif; }
