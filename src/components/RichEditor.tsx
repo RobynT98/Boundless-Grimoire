@@ -10,6 +10,7 @@ import TextStyle from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import FontFamily from '@tiptap/extension-font-family'
+import Placeholder from '@tiptap/extension-placeholder'
 
 type Props = {
   value: string
@@ -27,6 +28,31 @@ function normalizeHtml(html: string): string {
   wrap.querySelectorAll<HTMLElement>('span[style]').forEach(el => {
     el.setAttribute('style', el.style.cssText)
   })
+  return wrap.innerHTML
+}
+
+// Lättare städning: ta bort tomma <p> och unwrap:a spans som bara sätter font-family
+function cleanHtml(html: string): string {
+  if (typeof window === 'undefined') return html
+  const wrap = document.createElement('div')
+  wrap.innerHTML = html
+
+  wrap.querySelectorAll('span[style]').forEach((el) => {
+    const style = (el.getAttribute('style') || '').toLowerCase()
+    const onlyFont =
+      /(^|;)\s*font-family\s*:/.test(style) &&
+      !/(^|;)\s*(color|background|font-weight|font-style|text-decoration)\s*:/.test(style)
+    if (onlyFont) {
+      el.replaceWith(...Array.from(el.childNodes))
+    } else {
+      ;(el as HTMLElement).setAttribute('style', (el as HTMLElement).style.cssText)
+    }
+  })
+
+  wrap.querySelectorAll('p').forEach((p) => {
+    if (!p.textContent || p.textContent.trim() === '') p.remove()
+  })
+
   return wrap.innerHTML
 }
 
@@ -86,6 +112,9 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
         defaultProtocol: 'https',
       }),
       Image.configure({ allowBase64: true }),
+      Placeholder.configure({
+        placeholder: placeholder || 'Börja skriva…',
+      }),
     ],
     content: initialHTML || `<p class="text-muted">${placeholder || ''}</p>`,
     editorProps: {
@@ -97,7 +126,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     onUpdate({ editor }) {
       // I VISUELLT läge sparar vi HTML direkt → inga backslash-artefakter.
       if (modeRef.current !== 'visual') return
-      const html = normalizeHtml(editor.getHTML())
+      const html = cleanHtml(normalizeHtml(editor.getHTML()))
       if (html !== value) onChange(html)
     },
   })
@@ -130,10 +159,9 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
   function switchMode(next: 'md' | 'visual') {
     if (next === 'md' && editor) {
       // Visual → MD: turndown en gång och spara MD
-      const html = normalizeHtml(editor.getHTML())
+      const html = cleanHtml(normalizeHtml(editor.getHTML()))
       const md = td.turndown(html)
       onChange(md)
-      // Fokusera textarea efter setState
       requestAnimationFrame(() => { mdRef.current?.focus() })
     }
 
@@ -145,7 +173,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       const raw = looksLikeHTML(v) ? v : (marked.parse(v, { async: false }) as string)
       const html = normalizeHtml(raw)
       editor.commands.setContent(html, false)
-      editor.commands.focus() // bättre UX, särskilt på mobil
+      editor.commands.focus()
     }
   }
 
