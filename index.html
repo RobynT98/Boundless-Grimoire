@@ -2,8 +2,7 @@
 <html lang="sv">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Boundless Grimoire</title>
 
     <!-- PWA -->
@@ -11,8 +10,21 @@
     <link rel="manifest" href="/Boundless-Grimoire/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/Boundless-Grimoire/favicon.svg" />
     <link rel="apple-touch-icon" href="/Boundless-Grimoire/apple-touch-icon.png" />
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- Sätt tema ASAP (innan React) -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('grimoire-theme') || 'dark';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-black text-neutral-100">
+
+  <!-- Viktigt: låt våra CSS-variabler styra färgerna -->
+  <body class="bg-app text-main">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
