@@ -45,7 +45,7 @@ export default function Home() {
   }, [collections])
 
   return (
-    <div className="p-4 space-y-5">
+    <div className="p-4 space-y-5 text-[16px]">
       <header className="space-y-1">
         <h1>Boundless Grimoire</h1>
         <p className="text-muted">
@@ -54,10 +54,10 @@ export default function Home() {
       </header>
 
       {/* Snabbgenvägar */}
-      <nav className="flex gap-2">
-        <Link to="/create" className="btn btn-primary">+ Ny post</Link>
-        <Link to="/library" className="btn btn-secondary">Bibliotek</Link>
-        <Link to="/search" className="btn btn-secondary">Sök</Link>
+      <nav className="flex flex-wrap gap-2">
+        <Link to="/create" className="btn btn-primary min-h-[44px]">+ Ny post</Link>
+        <Link to="/library" className="btn btn-secondary min-h-[44px]">Bibliotek</Link>
+        <Link to="/search" className="btn btn-secondary min-h-[44px]">Sök</Link>
       </nav>
 
       {/* Senast uppdaterade */}
@@ -81,12 +81,14 @@ export default function Home() {
                   className="card p-4 hover:brightness-110 transition"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="text-2xl">{col?.icon || '📄'}</div>
+                    <div className="text-2xl shrink-0">{col?.icon || '📄'}</div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold truncate">{e.title}</h3>
-                        <span className="text-[11px] px-2 py-0.5 rounded border-app"
-                              style={{ background: 'var(--panel)', borderWidth: 1, color: 'var(--text)' }}>
+                        <span
+                          className="text-[11px] px-2 py-0.5 rounded border-app"
+                          style={{ background: 'var(--panel)', borderWidth: 1, color: 'var(--text)' }}
+                        >
                           {col?.name || 'Okänd'}
                         </span>
                       </div>
