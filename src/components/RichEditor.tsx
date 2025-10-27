@@ -20,21 +20,21 @@ type Props = {
 const td = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
 
 export default function RichEditor({ value, onChange, placeholder }: Props) {
-  // Rendera Markdown → HTML (för init/visual)
+  // Rendera Markdown → HTML (för initialt visuellt innehåll)
   const initialHTML = useMemo(
     () => marked.parse(value || '', { async: false }) as string,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    // vi laddar in MD på mode-växling ändå
+    [] 
   )
 
   const [mode, setMode] = useState<'md' | 'visual'>('md')
   const modeRef = useRef<'md' | 'visual'>(mode)
   useEffect(() => { modeRef.current = mode }, [mode])
 
-  // Textarea i MD-läge (för att kunna infoga text vid markör)
+  // Textarea-referens i MD-läge (för infogning vid markör)
   const mdRef = useRef<HTMLTextAreaElement>(null)
 
-  // TipTap
+  // TipTap-editor
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -58,7 +58,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       },
     },
     onUpdate({ editor }) {
-      // Skriv bara tillbaka till markdown när vi ÄR i visual-läge
+      // Skriv bara tillbaka till markdown när vi ÄR i visuellt läge
       if (modeRef.current !== 'visual') return
       const html = editor.getHTML()
       const md = td.turndown(html)
@@ -66,7 +66,18 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     },
   })
 
-  // Håll visual content i synk om value (MD) byts externt
+  // Hjälpare: gör markeringar "klibbiga" (stored marks) för färg & font
+  function withStickyMark(apply: () => void) {
+    if (!editor) return
+    const { empty, to } = editor.state.selection
+    apply() // lägg på ev. markering
+    if (!empty) {
+      editor.commands.setTextSelection({ from: to, to })
+      apply() // applicera igen vid markör → blir kvar när man fortsätter skriva
+    }
+  }
+
+  // Håll visuellt innehåll i synk när MD ändras utifrån
   useEffect(() => {
     if (!editor) return
     if (mode !== 'visual') return
@@ -79,11 +90,9 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
   function switchMode(next: 'md' | 'visual') {
     setMode(next)
     if (next === 'visual' && editor) {
-      // När vi går TILL visual – mata in aktuell MD som HTML
       const html = marked.parse(value || '', { async: false }) as string
       editor.commands.setContent(html, false)
     }
-    // När vi går TILL md gör vi inget; onUpdate har redan turndown:at.
   }
 
   // ---------- Verktyg: gemensamt / MD / Visuell ----------
@@ -116,20 +125,18 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     }
   }
 
-  // Länk (MD): använd markerad text om sådan finns
+  // Länk (MD)
   function promptLinkMarkdown() {
     const el = mdRef.current
     if (!el) return
     const hasSelection = (el.selectionStart ?? 0) !== (el.selectionEnd ?? 0)
     const selectedText = hasSelection ? el.value.slice(el.selectionStart!, el.selectionEnd!) : ''
-
     const text = hasSelection ? selectedText : (window.prompt('Text att visa:', '') ?? '')
     if (text === null) return
     const url = window.prompt('Länkadress (https://…):', 'https://')
     if (url === null || url.trim() === '') return
 
     const snippet = `[${text || 'länk'}](${url.trim()})`
-    // Om vi hade markerat text – ersätt markeringen, annars infoga vid markör.
     if (hasSelection) {
       const start = el.selectionStart!
       const end = el.selectionEnd!
@@ -170,7 +177,6 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       editor.chain().focus()
       arr.forEach(src => editor.chain().setImage({ src }).run())
     } else if (mode === 'md' && mdRef.current) {
-      // Infoga som markdown-bilder
       const el = mdRef.current
       for (const src of arr) {
         const snippet = `![bild](${src})`
@@ -180,14 +186,20 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  // Färg & Typsnitt – med sticky marks
   function setColor(ev: React.ChangeEvent<HTMLInputElement>) {
     if (!editor) return
-    editor.chain().focus().setColor(ev.target.value).run()
+    const v = ev.target.value
+    withStickyMark(() => editor.chain().focus().setColor(v).run())
   }
   function setFont(family: string) {
     if (!editor) return
-    if (family === 'system') editor.chain().focus().unsetFontFamily().run()
-    else editor.chain().focus().setFontFamily(resolveFontFamily(family)).run()
+    if (family === 'system') {
+      withStickyMark(() => editor.chain().focus().unsetFontFamily().run())
+    } else {
+      const resolved = resolveFontFamily(family)
+      withStickyMark(() => editor.chain().focus().setFontFamily(resolved).run())
+    }
   }
   function resolveFontFamily(key: string) {
     switch (key) {
@@ -204,7 +216,6 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
 
   // Hjälp-popup (diskret)
   const [showHelp, setShowHelp] = useState(false)
-
   const editorReady = !!editor
 
   return (
@@ -236,6 +247,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
         <button type="button" className="btn" onClick={handleLinkClick} title="Infoga länk">
           🔗 Länk
         </button>
+
         <input
           ref={fileInputRef}
           type="file"
@@ -252,6 +264,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
         >
           🖼️ Bild
         </button>
+
         <button
           type="button"
           className="btn"
