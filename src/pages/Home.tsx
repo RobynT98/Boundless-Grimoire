@@ -5,21 +5,41 @@ import type { Collection, Entry } from '../types'
 import { Link } from 'react-router-dom'
 import { marked } from 'marked'
 
-// Hjälp: säkert MD/HTML → plain text (för snippets)
-function mdToPlain(mdOrHtml: string): string {
+/* ---------- MD/HTML → ren text (för snippets) ---------- */
+function mdToPlain(mdOrHtml: string, title?: string): string {
   const raw = mdOrHtml || ''
   const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
   const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
+
+  // Fallback utan DOM (SSR)
   if (typeof window === 'undefined') {
-    // fallback utan DOM
-    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    let txt = html.replace(/<[^>]+>/g, ' ')
+    txt = txt.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
+    if (title) txt = stripLeadingTitle(txt, title)
+    return txt
   }
+
   const div = document.createElement('div')
   div.innerHTML = html
-  return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim()
+
+  // Ta bort första H1/H2 (rubriker) för att slippa “# …” i snippet
+  const firstHeading = div.querySelector('h1, h2')
+  if (firstHeading) firstHeading.remove()
+
+  let text = (div.textContent || div.innerText || '')
+  text = text.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
+  if (title) text = stripLeadingTitle(text, title)
+  return text
 }
 
-// Plocka fram “viktigaste” fältet per samling för att visa som undertext
+function stripLeadingTitle(text: string, title: string): string {
+  const t = title.trim()
+  if (!t) return text
+  const rx = new RegExp('^' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[–—:\\-]\\s*', 'i')
+  return text.replace(rx, '').trim()
+}
+
+/* ---------- “subtitle” per samling ---------- */
 function entrySubtitle(e: Entry): string {
   const c = e.collectionId
   const v = e.custom || {}
@@ -67,14 +87,12 @@ export default function Home() {
         <p className="text-muted">Ditt modulära, offline-först uppslagsverk i grimoire-stil.</p>
       </header>
 
-      {/* Snabbgenvägar */}
       <nav className="flex flex-wrap gap-2">
         <Link to="/create" className="btn btn-primary min-h-[44px]">+ Ny post</Link>
         <Link to="/library" className="btn btn-secondary min-h-[44px]">Bibliotek</Link>
         <Link to="/search" className="btn btn-secondary min-h-[44px]">Sök</Link>
       </nav>
 
-      {/* Senast uppdaterade */}
       <section className="section space-y-3">
         <h2>Senast uppdaterade</h2>
 
@@ -85,32 +103,21 @@ export default function Home() {
             {recent.map(e => {
               const col = colMap.get(e.collectionId)
               const subtitle = entrySubtitle(e)
-              const snippet = mdToPlain(e.contentMD).slice(0, 160)
+              const snippet = mdToPlain(e.contentMD, e.title).slice(0, 160)
 
               return (
-                <Link
-                  key={e.id}
-                  to={`/entry/${e.id}`}
-                  className="card p-4 hover:brightness-110 transition"
-                >
+                <Link key={e.id} to={`/entry/${e.id}`} className="card p-4 hover:brightness-110 transition">
                   <div className="flex items-start gap-3">
                     <div className="text-2xl shrink-0 select-none">{col?.icon || '📄'}</div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold truncate">{e.title}</h3>
-                        <span
-                          className="text-[11px] px-2 py-0.5 rounded border-app"
-                          style={{ background: 'var(--panel)', borderWidth: 1, color: 'var(--text)' }}
-                        >
+                        <span className="text-[11px] px-2 py-0.5 rounded border-app" style={{ background: 'var(--panel)', borderWidth: 1, color: 'var(--text)' }}>
                           {col?.name || 'Okänd'}
                         </span>
                       </div>
-                      {subtitle && (
-                        <div className="text-xs text-muted mt-0.5 truncate">{subtitle}</div>
-                      )}
-                      {snippet && (
-                        <p className="text-sm text-main mt-1 line-clamp-2">{snippet}</p>
-                      )}
+                      {subtitle && <div className="text-xs text-muted mt-0.5 truncate">{subtitle}</div>}
+                      {snippet && <p className="text-sm text-main mt-1 line-clamp-2">{snippet}</p>}
                     </div>
                   </div>
                 </Link>
