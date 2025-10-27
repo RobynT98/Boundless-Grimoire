@@ -100,3 +100,42 @@ input[type="text"], input[type="number"], input[type="date"] {
 /* Scrollbar-hjälp */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* ===== Bottom Tabbar ===== */
+.tabbar{
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  background: color-mix(in oklab, var(--panel), black 15%);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 22px var(--shadow);
+  z-index: 40;
+}
+
+.tab-item{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  line-height: 1;
+}
+.tab-item:hover{ filter: brightness(1.05); }
+
+.tab-ico{ font-size: 18px; line-height: 1; }
+.tab-label{ white-space: nowrap; }
+
+.tab-active{
+  background: color-mix(in oklab, var(--accent), black 15%);
+  color: #0b0b0b;
+}
+html[data-theme="light"] .tab-active{
+  color: #0a0a0a; /* säker text i ljust tema */
+}
