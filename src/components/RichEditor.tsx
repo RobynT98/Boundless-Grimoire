@@ -17,11 +17,28 @@ type Props = {
   placeholder?: string
 }
 
-/** Turndown – behåll stilad text som rå HTML inuti MD */
+/* ---------------- HTML helpers ---------------- */
+
+function normalizeHtml(html: string): string {
+  if (typeof window === 'undefined') return html
+  const wrap = document.createElement('div')
+  wrap.innerHTML = html
+
+  // Normalisera style-attribut så browsern skriver om cssText (tar bort trasiga citationstecken)
+  wrap.querySelectorAll<HTMLElement>('span[style]').forEach(el => {
+    el.setAttribute('style', el.style.cssText)
+  })
+
+  return wrap.innerHTML
+}
+
+const looksLikeHTML = (s: string) => /<\s*[a-z][\s\S]*>/i.test(s)
+
+/* ---------------- Turndown (WYSIWYG -> MD) ---------------- */
+
 const td = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
 td.keep(['u', 'mark'])
 
-/** Behåll <span style="color:...; font-family:...">...</span> när vi turndown:ar */
 td.addRule('preserveStyledSpan', {
   filter(node: Node): boolean {
     const el = node as HTMLElement
@@ -32,29 +49,31 @@ td.addRule('preserveStyledSpan', {
   },
   replacement(content: string, node: Node): string {
     const el = node as HTMLElement
-    const style = el.getAttribute('style') ?? ''
-    return `<span style="${style}">${content}</span>`
+    const raw = el.getAttribute('style') ?? ''
+    // Escapa enkla citattecken och wrappa i '...'
+    const safe = raw.replace(/'/g, '&#39;')
+    return `<span style='${safe}'>${content}</span>`
   },
 })
 
-/** Hjälp – känns igen HTML så vi inte försöker parsa den igen */
-const looksLikeHTML = (s: string) => /<\s*[a-z][\s\S]*>/i.test(s)
+/* ---------------- Component ---------------- */
 
 export default function RichEditor({ value, onChange, placeholder }: Props) {
-  // Initial MD → HTML
+  // Initial MD -> HTML (och normalisera)
   const initialHTML = useMemo(() => {
     const v = value || ''
-    return looksLikeHTML(v) ? v : (marked.parse(v, { async: false }) as string)
-  }, [])
+    const raw = looksLikeHTML(v) ? v : (marked.parse(v, { async: false }) as string)
+    return normalizeHtml(raw)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [mode, setMode] = useState<'md' | 'visual'>('md')
   const modeRef = useRef<'md' | 'visual'>(mode)
   useEffect(() => { modeRef.current = mode }, [mode])
 
-  // Textarea-referens
+  // Textarea-referens (MD-läge)
   const mdRef = useRef<HTMLTextAreaElement>(null)
 
-  // TipTap-editor
+  // TipTap
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -78,14 +97,15 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       },
     },
     onUpdate({ editor }) {
+      // Skriv tillbaka till MD bara i visuellt läge
       if (modeRef.current !== 'visual') return
-      const html = editor.getHTML()
+      const html = normalizeHtml(editor.getHTML())
       const md = td.turndown(html)
       if (md !== value) onChange(md)
     },
   })
 
-  // --- Stored marks helpers
+  /* ---- Stored marks: håll stil kvar när du fortsätter skriva ---- */
   function addStoredTextStyle(attrs: { color?: string; fontFamily?: string | null }) {
     if (!editor) return
     const { state, view } = editor
@@ -105,7 +125,8 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
   useEffect(() => {
     if (!editor || mode !== 'visual') return
     const v = value || ''
-    const html = looksLikeHTML(v) ? v : (marked.parse(v, { async: false }) as string)
+    const raw = looksLikeHTML(v) ? v : (marked.parse(v, { async: false }) as string)
+    const html = normalizeHtml(raw)
     if (editor.getHTML() !== html) editor.commands.setContent(html, false)
   }, [value, mode, editor])
 
@@ -113,12 +134,14 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     setMode(next)
     if (next === 'visual' && editor) {
       const v = value || ''
-      const html = looksLikeHTML(v) ? v : (marked.parse(v, { async: false }) as string)
+      const raw = looksLikeHTML(v) ? v : (marked.parse(v, { async: false }) as string)
+      const html = normalizeHtml(raw)
       editor.commands.setContent(html, false)
     }
   }
 
-  // --- Insättningshjälp för textarea
+  /* ---------------- Verktyg: länkar/bilder/insättning ---------------- */
+
   function insertAtCursor(el: HTMLTextAreaElement, snippet: string) {
     const start = el.selectionStart ?? el.value.length
     const end = el.selectionEnd ?? el.value.length
@@ -132,7 +155,6 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     })
   }
 
-  // --- Länkar
   function promptLinkVisual() {
     if (!editor) return
     const existing = editor.getAttributes('link').href as string | undefined
@@ -141,6 +163,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     if (url === '') editor.chain().focus().unsetLink().run()
     else editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }
+
   function promptLinkMarkdown() {
     const el = mdRef.current
     if (!el) return
@@ -151,26 +174,26 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     const url = window.prompt('Länkadress (https://…):', 'https://')
     if (!url || !url.trim()) return
     const snippet = `[${text || 'länk'}](${url.trim()})`
-    hasSel
-      ? (() => {
-          const start = el.selectionStart!
-          const end = el.selectionEnd!
-          const next = el.value.slice(0, start) + snippet + el.value.slice(end)
-          onChange(next)
-          requestAnimationFrame(() => {
-            el.focus()
-            const pos = start + snippet.length
-            el.selectionStart = el.selectionEnd = pos
-          })
-        })()
-      : insertAtCursor(el, snippet)
+    if (hasSel) {
+      const start = el.selectionStart!
+      const end = el.selectionEnd!
+      const next = el.value.slice(0, start) + snippet + el.value.slice(end)
+      onChange(next)
+      requestAnimationFrame(() => {
+        el.focus()
+        const pos = start + snippet.length
+        el.selectionStart = el.selectionEnd = pos
+      })
+    } else {
+      insertAtCursor(el, snippet)
+    }
   }
+
   function handleLinkClick() {
     if (mode === 'visual') promptLinkVisual()
     else promptLinkMarkdown()
   }
 
-  // --- Bilder
   const fileInputRef = useRef<HTMLInputElement>(null)
   async function onPickImages(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -193,7 +216,8 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // --- Färg & typsnitt
+  /* ---------------- Färg & typsnitt ---------------- */
+
   function setColor(ev: React.ChangeEvent<HTMLInputElement>) {
     if (!editor) return
     const v = ev.target.value
@@ -234,7 +258,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
 
   return (
     <div className="space-y-2 editor-root">
-      {/* Topbar */}
+      {/* Topbar (touchvänlig) */}
       <div className="editor-toolbar sticky editor-avoid-overlap">
         <div className="inline-flex gap-2 mr-2">
           <button
@@ -284,6 +308,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
         </button>
       </div>
 
+      {/* Diskret MD-hjälp */}
       {mode === 'md' && showHelp && (
         <div className="text-xs text-muted border border-app rounded p-2 bg-panel leading-snug">
           <div className="mb-1 font-semibold">Markdown-kortkommandon</div>
@@ -298,6 +323,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
         </div>
       )}
 
+      {/* Visuella verktyg */}
       {mode === 'visual' && (
         <div className="editor-toolbar flex-wrap">
           <button type="button" className="btn min-h-[44px]" onClick={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button>
@@ -334,6 +360,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
         </div>
       )}
 
+      {/* Editor / Textarea */}
       {mode === 'visual' ? (
         <EditorContent editor={editor} />
       ) : (
