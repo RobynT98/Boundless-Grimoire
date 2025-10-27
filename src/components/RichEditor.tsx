@@ -13,7 +13,7 @@ import FontFamily from '@tiptap/extension-font-family'
 
 type Props = {
   value: string
-  onChange: (next: string) => void // kan vara MD eller HTML beroende på läge
+  onChange: (next: string) => void // sparar HTML i visuellt läge, MD i md-läge
   placeholder?: string
 }
 
@@ -23,12 +23,10 @@ function normalizeHtml(html: string): string {
   if (typeof window === 'undefined') return html
   const wrap = document.createElement('div')
   wrap.innerHTML = html
-
-  // Normalisera style-attribut så browsern skriver om cssText
+  // Normalisera style-attribut – låt browsern skriva cssText (städar citattecken m.m.)
   wrap.querySelectorAll<HTMLElement>('span[style]').forEach(el => {
     el.setAttribute('style', el.style.cssText)
   })
-
   return wrap.innerHTML
 }
 
@@ -50,7 +48,7 @@ td.addRule('preserveStyledSpan', {
   replacement(content: string, node: Node): string {
     const el = node as HTMLElement
     const raw = el.getAttribute('style') ?? ''
-    // Escapa enkla citattecken och wrappa i '...'
+    // Escapa enkla citattecken så vi kan wrappa i '...'
     const safe = raw.replace(/'/g, '&#39;')
     return `<span style='${safe}'>${content}</span>`
   },
@@ -97,7 +95,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       },
     },
     onUpdate({ editor }) {
-      // I VISUELLT läge sparar vi HTML direkt → inga \-artefakter.
+      // I VISUELLT läge sparar vi HTML direkt → inga backslash-artefakter.
       if (modeRef.current !== 'visual') return
       const html = normalizeHtml(editor.getHTML())
       if (html !== value) onChange(html)
@@ -135,6 +133,8 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       const html = normalizeHtml(editor.getHTML())
       const md = td.turndown(html)
       onChange(md)
+      // Fokusera textarea efter setState
+      requestAnimationFrame(() => { mdRef.current?.focus() })
     }
 
     setMode(next)
@@ -145,6 +145,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       const raw = looksLikeHTML(v) ? v : (marked.parse(v, { async: false }) as string)
       const html = normalizeHtml(raw)
       editor.commands.setContent(html, false)
+      editor.commands.focus() // bättre UX, särskilt på mobil
     }
   }
 
@@ -219,7 +220,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       editor.chain().focus()
       arr.forEach(src => editor.chain().setImage({ src }).run())
     } else if (mode === 'md' && mdRef.current) {
-      for (const src of arr) insertAtCursor(mdRef.current, `![bild](${src})`)
+      for (const src of arr) insertAtCursor(mdRef.current, `![bild](${src} "bild")`)
     }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
