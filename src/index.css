@@ -61,18 +61,25 @@ body { background: var(--bg); color: var(--text); }
   border-radius: 12px;
 }
 
+/* ===== Minst 16px & 44px touch-targets ===== */
+:root { --tap-h: 44px; --btn-px: 0.75rem; --btn-py: 0.5rem; }
+
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
+  padding: var(--btn-py) var(--btn-px);
+  min-height: var(--tap-h);
+  border-radius: 12px;
   transition: filter .15s ease, transform .02s ease;
   background: var(--panel);
   border: 1px solid var(--border);
   color: var(--text);
   text-decoration: none;
   cursor: pointer;
+  font-size: 16px; /* hindra iOS autozoom */
+  line-height: 1.2;
 }
 .btn:hover { filter: brightness(1.05); }
 .btn:active { transform: translateY(1px); }
@@ -103,12 +110,16 @@ body { background: var(--bg); color: var(--text); }
 .input, select, textarea,
 input[type="text"], input[type="number"], input[type="date"] {
   width: 100%;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  padding: 0.75rem 0.875rem;
+  min-height: var(--tap-h);
   background: var(--panel-soft);
   color: var(--text);
   border: 1px solid var(--border);
+  font-size: 16px; /* iOS: stoppa autozoom */
+  line-height: 1.2;
 }
+select { padding-right: 2rem; }
 ::placeholder { color: color-mix(in oklab, var(--muted), var(--bg) 10%); opacity: .9; }
 
 /* Prose (markdown) */
@@ -121,10 +132,8 @@ input[type="text"], input[type="number"], input[type="date"] {
 
 /* ===== Bottom Tabbar ===== */
 .tabbar{
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: grid; grid-template-columns: repeat(5, 1fr);
   gap: 0;
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   background: color-mix(in oklab, var(--panel), black 15%);
@@ -135,6 +144,7 @@ input[type="text"], input[type="number"], input[type="date"] {
 .tab-item{
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4px; padding: 8px 4px; border-radius: 10px;
+  min-height: var(--tap-h);
   color: var(--text); text-decoration: none; font-size: 12px; line-height: 1;
 }
 .tab-item:hover{ filter: brightness(1.05); }
@@ -162,7 +172,7 @@ html[data-theme="light"] .tab-active{ color: #0a0a0a; }
 }
 .safe-top { padding-top: max(12px, env(safe-area-inset-top)); }
 
-/* ===== Typsnitt utils (speglar editorns val) ===== */
+/* ===== Typsnitt utils ===== */
 .font-system { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif; }
 .font-serif  { font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif; }
 .font-mono   { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
@@ -172,13 +182,15 @@ html[data-theme="light"] .tab-active{ color: #0a0a0a; }
 .ProseMirror {
   min-height: 180px;
   padding: 0.75rem;
-  border-radius: 0.5rem;
+  border-radius: 12px;
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border);
   outline: none;
   word-break: break-word;
   white-space: pre-wrap;
+  font-size: 16px; /* hindra iOS zoom även i editor */
+  line-height: 1.4;
 }
 .ProseMirror p { margin: 0 0 .5rem; }
 .ProseMirror h2 { font-size: 1.125rem; font-weight: 700; margin: .75rem 0 .5rem; }
@@ -195,30 +207,39 @@ html[data-theme="light"] .tab-active{ color: #0a0a0a; }
 .ProseMirror pre { background: color-mix(in oklab, var(--panel), var(--bg) 15%); padding: .75rem; border-radius: 8px; overflow: auto; }
 .ProseMirror img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; }
 
-/* Placeholder-stil för tom editor */
+/* Placeholder för tom editor */
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left; color: var(--muted); pointer-events: none; height: 0;
 }
 
-/* Markeringsfärg – bättre synlighet mot mörk bakgrund */
+/* Markeringsfärg */
 .ProseMirror ::selection { background: color-mix(in oklab, var(--accent), white 70%); color: #111; }
 
-/* ===== Editor-topbar (kan göras sticky) ===== */
+/* ===== Editor-topbar (sticky) ===== */
 .editor-toolbar {
   display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
 }
 .editor-toolbar.sticky {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top, 0);
   z-index: 30;
-  display: flex;
-  flex-wrap: wrap;
-  gap: .5rem;
   padding: .25rem 0;
   background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
-.editor-avoid-overlap { padding-top: .25rem; }
+
+/* Ge textytan extra luft upptill så Androids urklippsmeny inte täcker toppbaren */
+.editor-root .ProseMirror,
+.editor-root textarea.input {
+  padding-top: 56px; /* ≈3.5rem, kan sänkas lite om du vill */
+}
+
+/* Desktop kan ha lite mindre extra-luft */
+@media (min-width: 641px) {
+  .editor-root .ProseMirror,
+  .editor-root textarea.input { padding-top: 24px; }
+}
 
 /* Färg-väljaren i toolbaren */
 .editor-toolbar input[type="color"]{
@@ -230,13 +251,14 @@ html[data-theme="light"] .tab-active{ color: #0a0a0a; }
   cursor: pointer;
 }
 
-/* Små knappar i toolbaren */
+/* Små knappar i toolbaren – men behåll 44px touch-höjd */
 .editor-btn {
   @apply btn;
-  height: 36px; padding: 0 .6rem;
+  height: var(--tap-h);
+  padding: 0 .6rem;
 }
 
-/* Gör så att urklippsmenyer på mobil inte täcker toolbar helt */
+/* Mindre extra spacing för säkerhets skull på mobil */
 @supports (env(safe-area-inset-top)) {
   .editor-avoid-overlap { padding-top: 2px; }
 }
