@@ -54,7 +54,7 @@ export default function EntryView() {
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       images,
       custom,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     }
     list[idx] = updated
     await saveEntries(list)
@@ -83,7 +83,9 @@ export default function EntryView() {
     return (
       <div className="p-4 space-y-2">
         <p>Hittar inte posten.</p>
-        <Link to="/search" className="btn btn-secondary min-h-[44px] text-[16px]">← Tillbaka</Link>
+        <Link to="/search" className="btn btn-secondary min-h-[44px] text-[16px]">
+          ← Tillbaka
+        </Link>
       </div>
     )
   }
@@ -133,7 +135,10 @@ export default function EntryView() {
           )}
 
           {/* Innehåll */}
-          <section className="section prose max-w-none" dangerouslySetInnerHTML={{ __html: html }} />
+          <section
+            className="section prose max-w-none"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
 
           {/* Relaterat */}
           {related.length > 0 && (
@@ -157,9 +162,15 @@ export default function EntryView() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            <button className="btn btn-primary min-h-[44px]" onClick={() => setIsEdit(true)}>Redigera</button>
-            <button className="btn btn-secondary min-h-[44px]" onClick={() => navigate(-1)}>Tillbaka</button>
-            <button className="btn min-h-[44px]" onClick={remove}>Ta bort</button>
+            <button className="btn btn-primary min-h-[44px]" onClick={() => setIsEdit(true)}>
+              Redigera
+            </button>
+            <button className="btn btn-secondary min-h-[44px]" onClick={() => navigate(-1)}>
+              Tillbaka
+            </button>
+            <button className="btn min-h-[44px]" onClick={remove}>
+              Ta bort
+            </button>
           </div>
         </>
       ) : (
