@@ -20,13 +20,12 @@ type Props = {
 const td = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
 
 export default function RichEditor({ value, onChange, placeholder }: Props) {
-  // “Källa” för visningen i VY-läget
   const initialHTML = useMemo(() => marked.parse(value || '', { async: false }) as string, [value])
 
   const [mode, setMode] = useState<'md' | 'visual'>('md')
   const [htmlShadow, setHtmlShadow] = useState<string>(initialHTML)
+  const [showHelp, setShowHelp] = useState(false)
 
-  // TipTap editor
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -50,7 +49,6 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       },
     },
     onUpdate({ editor }) {
-      // Uppdatera markdown varje gång i visual-läget
       const html = editor.getHTML()
       setHtmlShadow(html)
       const md = td.turndown(html)
@@ -58,7 +56,6 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     },
   })
 
-  // När parent ändrar value (t.ex. välj mall), synka in i visuellt läge
   useEffect(() => {
     const nextHTML = marked.parse(value || '', { async: false }) as string
     setHtmlShadow(nextHTML)
@@ -68,15 +65,14 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
-  // Växla läge
   function switchMode(next: 'md' | 'visual') {
     setMode(next)
     if (next === 'visual' && editor) {
       editor.commands.setContent(marked.parse(value || '', { async: false }) as string, false)
     }
+    if (next === 'md') setShowHelp(false)
   }
 
-  // Toolbar-handlers
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function promptLink() {
@@ -132,12 +128,14 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
 
   return (
     <div className="space-y-2">
-      {/* Mode-toggle */}
-      <div className="inline-flex gap-2">
+      {/* Läge + diskret hjälpknapp för MD */}
+      <div className="inline-flex gap-2 items-center">
         <button
           type="button"
           className={`btn ${mode==='md' ? 'btn-active' : ''}`}
           onClick={() => switchMode('md')}
+          aria-controls="md-help"
+          aria-expanded={mode === 'md' && showHelp ? true : false}
         >
           Markdown
         </button>
@@ -148,7 +146,91 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
         >
           Visuell
         </button>
+
+        {mode === 'md' && (
+          <button
+            type="button"
+            className="btn text-sm"
+            onClick={() => setShowHelp(v => !v)}
+            aria-controls="md-help"
+            aria-expanded={showHelp}
+            title="Snabbguide för Markdown"
+          >
+            Hjälp
+          </button>
+        )}
       </div>
+
+      {/* Utfällbar MD-hjälp (diskret) */}
+      {mode === 'md' && (
+        <div
+          id="md-help"
+          className={`overflow-hidden transition-[max-height,opacity] duration-200 ${
+            showHelp ? 'opacity-100 max-h-[520px]' : 'opacity-0 max-h-0'
+          }`}
+        >
+          <div className="mt-1 rounded border border-app bg-panel p-3 text-sm leading-6 space-y-2">
+            <div className="font-semibold">🧭 Snabbguide</div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-muted">Rubriker</div>
+                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
+{`# H1
+## H2
+### H3`}
+                </pre>
+              </div>
+              <div>
+                <div className="text-muted">Stil</div>
+                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
+{`**fet**   *kursiv*   ~~genomstruken~~`}
+                </pre>
+              </div>
+
+              <div>
+                <div className="text-muted">Listor</div>
+                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
+{`- punkt
+- en till
+
+1. första
+2. andra`}
+                </pre>
+              </div>
+              <div>
+                <div className="text-muted">Länk & Bild</div>
+                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
+{`[text](https://adress)
+![alt](https://bild)`}
+                </pre>
+              </div>
+
+              <div>
+                <div className="text-muted">Citat</div>
+                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
+{`> Ett citat
+> över flera rader`}
+                </pre>
+              </div>
+              <div>
+                <div className="text-muted">Kod</div>
+                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
+{`\`inline\`
+
+\`\`\`
+fleradig kod
+\`\`\``}
+                </pre>
+              </div>
+            </div>
+
+            <div className="text-xs text-muted">
+              Tips: tom rad mellan stycken. Tre streck för avdelare: <code>---</code>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar (endast i visuellt läge) */}
       {mode === 'visual' && (
