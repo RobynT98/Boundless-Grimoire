@@ -3,6 +3,7 @@ import { getCollections, getEntries, saveEntries } from '../db'
 import type { Collection, Entry, CollectionField } from '../types'
 import { uid } from '../utils'
 import { marked } from 'marked'
+import RichEditor from '../components/RichEditor'
 
 type TemplateKey =
   | 'auto' | 'none'
@@ -15,20 +16,235 @@ type TemplateKey =
 const TEMPLATES: Record<TemplateKey, string> = {
   auto: '',
   none: '',
-  demon: `# Namn\n\n**Rang:** \n\n**Aspekt/område:** \n\n## Sigill\n\n![Sigill]()\n\n## Offer/korrespondenser\n- \n\n## Tecken på närvaro\n- \n\n## Varningar\n- \n\n## Beskrivning\n\n`,
-  god: `# Namn\n\n**Pantheon:** \n\n**Domäner:** \n\n## Etymologi\n\n## Myt/ursprung\n\n## Ärade dagar/platser\n- \n\n## Korrespondenser\n- Färg: \n- Växt: \n- Mineral: \n\n## Riter/erbjudanden\n- \n`,
-  angel: `# Namn\n\n**Kör/Hierarki:** \n\n**Titel/uppgift:** \n\n## Sigill/tecken\n\n## Dygder och hjälp\n- \n\n## Åkallan\n\n> \n\n## Observationer\n\n`,
-  natureSpirit: `# Namn\n\n**Region/Habitat:** \n\n**Typ:** \n\n## Drag\n- \n\n## Gåvor/etikett\n- \n\n## Risker\n- \n\n## Mötets anteckningar\n\n`,
-  spirit: `# Namn\n\n**Typ:** \n\n**Attribut:** \n\n## Tecken/omständigheter\n- \n\n## Interaktioner\n\n## Varningar\n- \n`,
-  crystal: `# Namn\n\n**Hårdhet (Mohs):** \n\n**Färg:** \n\n**Korrespondenser:** \n- Element: \n- Chakra: \n- Syfte: \n\n## Användning\n- Bärande: \n- Grid: \n- Elixir (säkerhet): \n\n## Rengöring/laddning\n- \n`,
-  herb: `# Namn\n\n**Latinskt namn:** \n\n**Delar som används:** \n\n**Korrespondenser:** \n- Element: \n- Planet: \n- Syfte: \n\n## Beredning\n- Te: \n- Tinktur: \n- Rökelse: \n\n## Säkerhet\n- \n`,
-  aura: `# Namn\n\n**Färg/nyans:** \n\n**Tolkning:** \n\n## Tillstånd\n- Stabilitet: \n- Rörelsemönster: \n\n## Rekommenderad balans\n- \n`,
-  rune: `# Runa\n\n**Grafem:** ᚠ\n\n**Ljudvärde:** \n\n**Betydelser:**\n- \n\n**Omvänd:**\n- \n\n**Bindrunor/galdrar:**\n- \n`,
-  healing: `# Metod/verktyg\n\n**Syfte:** \n\n## Material\n- \n\n## Steg\n1. \n2. \n3. \n\n## Eftervård\n- \n\n## Kontraindikationer\n- \n`,
-  curse: `# Förbannelse\n\n**Mål/avsikt:** \n\n## Material\n- \n\n## Konstruktion\n1. \n2. \n3. \n\n## Säkerhet/avslut\n- \n\n> **Etik:** dokumentera motiv och konsekvenser.`,
-  spell: `# Trollformel\n\n**Avsikt:** \n\n## Fönster (tid/astro)\n- \n\n## Material\n- \n\n## Utförande\n1. \n2. \n3. \n\n## Tecken på effekt\n- \n`,
-  ritual: `# Ritual\n\n**Syfte:** \n\n## Verktyg & korrespondenser\n- \n\n## Steg\n1. \n2. \n3. \n\n## Risker/brytning\n- \n`,
-  note: `# Anteckning\n\n`
+  demon: `# Namn
+
+**Rang:** 
+
+**Aspekt/område:** 
+
+## Sigill
+
+![Sigill]()
+
+## Offer/korrespondenser
+- 
+
+## Tecken på närvaro
+- 
+
+## Varningar
+- 
+
+## Beskrivning
+
+`,
+  god: `# Namn
+
+**Pantheon:** 
+
+**Domäner:** 
+
+## Etymologi
+
+## Myt/ursprung
+
+## Ärade dagar/platser
+- 
+
+## Korrespondenser
+- Färg: 
+- Växt: 
+- Mineral: 
+
+## Riter/erbjudanden
+- 
+`,
+  angel: `# Namn
+
+**Kör/Hierarki:** 
+
+**Titel/uppgift:** 
+
+## Sigill/tecken
+
+## Dygder och hjälp
+- 
+
+## Åkallan
+
+> 
+
+## Observationer
+
+`,
+  natureSpirit: `# Namn
+
+**Region/Habitat:** 
+
+**Typ:** 
+
+## Drag
+- 
+
+## Gåvor/etikett
+- 
+
+## Risker
+- 
+
+## Mötets anteckningar
+
+`,
+  spirit: `# Namn
+
+**Typ:** 
+
+**Attribut:** 
+
+## Tecken/omständigheter
+- 
+
+## Interaktioner
+
+## Varningar
+- 
+`,
+  crystal: `# Namn
+
+**Hårdhet (Mohs):** 
+
+**Färg:** 
+
+**Korrespondenser:** 
+- Element: 
+- Chakra: 
+- Syfte: 
+
+## Användning
+- Bärande: 
+- Grid: 
+- Elixir (säkerhet): 
+
+## Rengöring/laddning
+- 
+`,
+  herb: `# Namn
+
+**Latinskt namn:** 
+
+**Delar som används:** 
+
+**Korrespondenser:** 
+- Element: 
+- Planet: 
+- Syfte: 
+
+## Beredning
+- Te: 
+- Tinktur: 
+- Rökelse: 
+
+## Säkerhet
+- 
+`,
+  aura: `# Namn
+
+**Färg/nyans:** 
+
+**Tolkning:** 
+
+## Tillstånd
+- Stabilitet: 
+- Rörelsemönster: 
+
+## Rekommenderad balans
+- 
+`,
+  rune: `# Runa
+
+**Grafem:** ᚠ
+
+**Ljudvärde:** 
+
+**Betydelser:**
+- 
+
+**Omvänd:**
+- 
+
+**Bindrunor/galdrar:**
+- 
+`,
+  healing: `# Metod/verktyg
+
+**Syfte:** 
+
+## Material
+- 
+
+## Steg
+1. 
+2. 
+3. 
+
+## Eftervård
+- 
+
+## Kontraindikationer
+- 
+`,
+  curse: `# Förbannelse
+
+**Mål/avsikt:** 
+
+## Material
+- 
+
+## Konstruktion
+1. 
+2. 
+3. 
+
+## Säkerhet/avslut
+- 
+
+> **Etik:** dokumentera motiv och konsekvenser.`,
+  spell: `# Trollformel
+
+**Avsikt:** 
+
+## Fönster (tid/astro)
+- 
+
+## Material
+- 
+
+## Utförande
+1. 
+2. 
+3. 
+
+## Tecken på effekt
+- 
+`,
+  ritual: `# Ritual
+
+**Syfte:** 
+
+## Verktyg & korrespondenser
+- 
+
+## Steg
+1. 
+2. 
+3. 
+
+## Risker/brytning
+- 
+`,
+  note: `# Anteckning
+
+`
 }
 
 const TEMPLATE_META: { key: TemplateKey; label: string; icon: string }[] = [
@@ -218,13 +434,14 @@ export default function Create() {
           placeholder="Titel"
           className="input"
         />
-        <textarea
+
+        {/* RichEditor (MD ↔ visual) */}
+        <RichEditor
           value={content}
-          onChange={e=>setContent(e.target.value)}
-          placeholder="Markdown-innehåll (långa anteckningar välkomna)"
-          rows={10}
-          className="input"
+          onChange={setContent}
+          placeholder="Markdown eller visuellt – välj vad som känns bäst."
         />
+
         <input
           value={tags}
           onChange={e=>setTags(e.target.value)}
