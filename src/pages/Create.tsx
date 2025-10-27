@@ -4,14 +4,74 @@ import type { Collection, Entry, CollectionField } from '../types'
 import { uid } from '../utils'
 import { marked } from 'marked'
 
-type TemplateKey = 'auto' | 'demon' | 'rune' | 'ritual' | 'none'
+// ---- Mall-nycklar (en per kategori + auto/none)
+type TemplateKey =
+  | 'auto' | 'none'
+  | 'demon' | 'god' | 'angel'
+  | 'natureSpirit' | 'spirit'
+  | 'crystal' | 'herb' | 'aura'
+  | 'rune' | 'healing' | 'curse' | 'spell' | 'ritual'
+  | 'note'
 
-const TEMPLATES: Record<TemplateKey,string> = {
+// ---- Malltext per nyckel (Markdown)
+const TEMPLATES: Record<TemplateKey, string> = {
   auto: '',
-  demon: `# Namn\n\n**Rang:** \n\n**Aspekt:** \n\n## Varningar\n- \n\n## Beskrivning\n\n`,
-  rune: `# Rune\n\n**Ljudvärde:** \n\n## Betydelse\n- \n\n## Användning\n- \n`,
-  ritual: `# Ritual\n\n**Syfte:** \n\n## Material\n- \n\n## Steg\n1. \n2. \n3. \n\n## Risker\n- \n`,
-  none: ''
+  none: '',
+  demon: `# Namn\n\n**Rang:** \n\n**Aspekt/område:** \n\n## Sigill\n\n![Sigill]()\n\n## Offer/korrespondenser\n- \n\n## Tecken på närvaro\n- \n\n## Varningar\n- \n\n## Beskrivning\n\n`,
+  god: `# Namn\n\n**Pantheon:** \n\n**Domäner:** \n\n## Etymologi\n\n## Myt/ursprung\n\n## Ärade dagar/platser\n- \n\n## Korrespondenser\n- Färg: \n- Växt: \n- Mineral: \n\n## Riter/erbjudanden\n- \n`,
+  angel: `# Namn\n\n**Kör/Hierarki:** \n\n**Titel/uppgift:** \n\n## Sigill/tecken\n\n## Dygder och hjälp\n- \n\n## Åkallan\n\n> \n\n## Observationer\n\n`,
+  natureSpirit: `# Namn\n\n**Region/Habitat:** \n\n**Typ:** \n\n## Drag\n- \n\n## Gåvor/etikett\n- \n\n## Risker\n- \n\n## Mötets anteckningar\n\n`,
+  spirit: `# Namn\n\n**Typ:** \n\n**Attribut:** \n\n## Tecken/omständigheter\n- \n\n## Interaktioner\n\n## Varningar\n- \n`,
+  crystal: `# Namn\n\n**Hårdhet (Mohs):** \n\n**Färg:** \n\n**Korrespondenser:** \n- Element: \n- Chakra: \n- Syfte: \n\n## Användning\n- Bärande: \n- Grid: \n- Elixir (säkerhet): \n\n## Rengöring/laddning\n- \n`,
+  herb: `# Namn\n\n**Latinskt namn:** \n\n**Delar som används:** \n\n**Korrespondenser:** \n- Element: \n- Planet: \n- Syfte: \n\n## Beredning\n- Te: \n- Tinktur: \n- Rökelse: \n\n## Säkerhet\n- \n`,
+  aura: `# Namn\n\n**Färg/nyans:** \n\n**Tolkning:** \n\n## Tillstånd\n- Stabilitet: \n- Rörelsemönster: \n\n## Rekommenderad balans\n- \n`,
+  rune: `# Runa\n\n**Grafem:** ᚠ\n\n**Ljudvärde:** \n\n**Betydelser:**\n- \n\n**Omvänd:**\n- \n\n**Bindrunor/galdrar:**\n- \n`,
+  healing: `# Metod/verktyg\n\n**Syfte:** \n\n## Material\n- \n\n## Steg\n1. \n2. \n3. \n\n## Eftervård\n- \n\n## Kontraindikationer\n- \n`,
+  curse: `# Förbannelse\n\n**Mål/avsikt:** \n\n## Material\n- \n\n## Konstruktion\n1. \n2. \n3. \n\n## Säkerhet/avslut\n- \n\n> **Etik:** dokumentera motiv och konsekvenser.`,
+  spell: `# Trollformel\n\n**Avsikt:** \n\n## Fönster (tid/astro)\n- \n\n## Material\n- \n\n## Utförande\n1. \n2. \n3. \n\n## Tecken på effekt\n- \n`,
+  ritual: `# Ritual\n\n**Syfte:** \n\n## Verktyg & korrespondenser\n- \n\n## Steg\n1. \n2. \n3. \n\n## Risker/brytning\n- \n`,
+  note: `# Anteckning\n\n`
+}
+
+// Chip-metadata för UI
+const TEMPLATE_META: { key: TemplateKey; label: string; icon: string }[] = [
+  { key: 'auto', label: 'Auto', icon: '✨' },
+  { key: 'demon', label: 'Demon', icon: '👹' },
+  { key: 'god', label: 'Gud', icon: '⚡' },
+  { key: 'angel', label: 'Ängel', icon: '🪽' },
+  { key: 'natureSpirit', label: 'Natur', icon: '🌲' },
+  { key: 'spirit', label: 'Väsen', icon: '👁️' },
+  { key: 'crystal', label: 'Kristall', icon: '💎' },
+  { key: 'herb', label: 'Ört', icon: '🌿' },
+  { key: 'aura', label: 'Aura', icon: '🌈' },
+  { key: 'rune', label: 'Runa', icon: 'ᚠ' },
+  { key: 'healing', label: 'Healing', icon: '✨' },
+  { key: 'curse', label: 'Förbannelse', icon: '☠️' },
+  { key: 'spell', label: 'Trollformel', icon: '🪄' },
+  { key: 'ritual', label: 'Ritual', icon: '🕯️' },
+  { key: 'note', label: 'Anteckning', icon: '📝' },
+  { key: 'none', label: 'Ingen', icon: '∅' }
+]
+
+// Mappa samlings-id → lämplig mallnyckel (auto-läge)
+function autoTemplateFor(collectionId: string): TemplateKey {
+  switch (collectionId) {
+    case 'demons': return 'demon'
+    case 'gods': return 'god'
+    case 'angels': return 'angel'
+    case 'nature': return 'natureSpirit'
+    case 'beings': return 'spirit'
+    case 'crystals': return 'crystal'
+    case 'herbs': return 'herb'
+    case 'aura': return 'aura'
+    case 'runes': return 'rune'
+    case 'healing': return 'healing'
+    case 'curses': return 'curse'
+    case 'spells': return 'spell'
+    case 'rituals': return 'ritual'
+    case 'notes': return 'note'
+    default: return 'none'
+  }
 }
 
 export default function Create() {
@@ -33,7 +93,7 @@ export default function Create() {
     })()
   }, [])
 
-  // När samling byts → initiera custom-fält (tomma)
+  // Initiera fält + automatisk mall vid byte av samling
   useEffect(() => {
     const c = collections.find(c => c.id === collectionId)
     if (!c) return
@@ -41,12 +101,9 @@ export default function Create() {
     c.fields.forEach(f => { next[f.key] = '' })
     setCustom(next)
 
-    // auto-välj mall beroende på samling (kan ändras manuellt via knappar)
     if (tpl === 'auto') {
-      if (collectionId === 'demons') setContent(TEMPLATES.demon)
-      else if (collectionId === 'runes') setContent(TEMPLATES.rune)
-      else if (collectionId === 'rituals') setContent(TEMPLATES.ritual)
-      else setContent('')
+      const key = autoTemplateFor(collectionId)
+      setContent(TEMPLATES[key] || '')
     }
   }, [collectionId, collections]) // eslint-disable-line
 
@@ -73,8 +130,8 @@ export default function Create() {
     }
     all.push(entry)
     await saveEntries(all)
+    // nollställ
     setTitle(''); setContent(''); setTags(''); setImages([]); setRelated([]); setTpl('auto')
-    // nollställ custom
     const c = collections.find(c => c.id === collectionId)
     const base: Record<string, any> = {}
     c?.fields.forEach(f => { base[f.key] = '' })
@@ -101,19 +158,37 @@ export default function Create() {
   }
 
   const candidates = entries.filter(e => e.collectionId === collectionId || collectionId === '')
-
   const activeCollection = collections.find(c => c.id === collectionId)
 
   return (
     <div className="p-4 space-y-4">
       <h1>Ny post</h1>
 
-      <div className="flex gap-2 text-sm flex-wrap">
-        <button className={"px-3 py-1 rounded "+(tpl==='auto'?'bg-amber-600':'bg-neutral-800')} onClick={()=>applyTemplate('auto')}>Auto-mall</button>
-        <button className={"px-3 py-1 rounded "+(tpl==='demon'?'bg-amber-600':'bg-neutral-800')} onClick={()=>applyTemplate('demon')}>Demon-mall</button>
-        <button className={"px-3 py-1 rounded "+(tpl==='rune'?'bg-amber-600':'bg-neutral-800')} onClick={()=>applyTemplate('rune')}>Run-mall</button>
-        <button className={"px-3 py-1 rounded "+(tpl==='ritual'?'bg-amber-600':'bg-neutral-800')} onClick={()=>applyTemplate('ritual')}>Ritual-mall</button>
-        <button className={"px-3 py-1 rounded "+(tpl==='none'?'bg-amber-600':'bg-neutral-800')} onClick={()=>applyTemplate('none')}>Ingen mall</button>
+      {/* Snygg chip-rad för mallval */}
+      <div className="sticky -top-1 z-10">
+        <div className="scroll-px-4 -mx-4 overflow-x-auto pb-1 no-scrollbar">
+          <div className="inline-flex gap-2 px-4">
+            {TEMPLATE_META.map(t => {
+              const active = tpl === t.key
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => applyTemplate(t.key)}
+                  className={[
+                    "whitespace-nowrap px-3 py-1.5 rounded-full text-sm transition",
+                    active
+                      ? "bg-amber-600/90 text-black shadow ring-1 ring-amber-400"
+                      : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
+                  ].join(' ')}
+                  aria-pressed={active}
+                  title={t.label + '-mall'}
+                >
+                  <span className="mr-1">{t.icon}</span>{t.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       <form className="space-y-4" onSubmit={onSubmit}>
@@ -131,7 +206,12 @@ export default function Create() {
             <h2 className="mb-2">Fält</h2>
             <div className="grid grid-cols-1 gap-3">
               {activeCollection.fields.map(f => (
-                <FieldInput key={f.key} field={f} value={custom[f.key] ?? ''} onChange={(v)=>setCustom(prev=>({...prev, [f.key]: v}))} />
+                <FieldInput
+                  key={f.key}
+                  field={f}
+                  value={custom[f.key] ?? ''}
+                  onChange={(v)=>setCustom(prev=>({...prev, [f.key]: v}))}
+                />
               ))}
             </div>
           </section>
@@ -159,9 +239,13 @@ export default function Create() {
           <div className="max-h-40 overflow-auto border border-neutral-800 rounded p-2 space-y-1">
             {candidates.map(e => (
               <label key={e.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={related.includes(e.id)} onChange={()=>{
-                  setRelated(r => r.includes(e.id) ? r.filter(x=>x!==e.id) : [...r, e.id])
-                }} />
+                <input
+                  type="checkbox"
+                  checked={related.includes(e.id)}
+                  onChange={()=>{
+                    setRelated(r => r.includes(e.id) ? r.filter(x=>x!==e.id) : [...r, e.id])
+                  }}
+                />
                 <span>{e.title}</span>
               </label>
             ))}
