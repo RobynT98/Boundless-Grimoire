@@ -286,6 +286,9 @@ function autoTemplateFor(collectionId: string): TemplateKey {
   }
 }
 
+/** Om innehållet ”ser ut som HTML”, rendera det direkt – annars MD → HTML */
+const looksLikeHTML = (s: string) => /<\s*[a-z][\s\S]*>/i.test(s)
+
 export default function Create() {
   const [collections, setCollections] = useState<Collection[]>([])
   const [entries, setEntries] = useState<Entry[]>([])
@@ -350,10 +353,12 @@ export default function Create() {
     alert('Sparat!')
   }
 
-  const previewHTML = useMemo(
-    () => marked.parse(content || '', { async: false }) as string,
-    [content]
-  )
+  const previewHTML = useMemo(() => {
+    const v = content || ''
+    return looksLikeHTML(v)
+      ? v
+      : (marked.parse(v, { async: false }) as string)
+  }, [content])
 
   async function onPickImages(files: FileList | null) {
     if (!files) return
@@ -372,7 +377,7 @@ export default function Create() {
   const activeCollection = collections.find(c => c.id === collectionId)
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 text-[16px]">
       <h1>Ny post</h1>
 
       {/* mallar: chip-rad */}
@@ -385,7 +390,7 @@ export default function Create() {
                 <button
                   key={t.key}
                   onClick={() => applyTemplate(t.key)}
-                  className={`btn rounded-full ${active ? 'btn-active' : ''}`}
+                  className={`btn rounded-full min-h-[44px] ${active ? 'btn-active' : ''}`}
                   aria-pressed={active}
                   title={t.label + '-mall'}
                 >
@@ -404,7 +409,7 @@ export default function Create() {
           <select
             value={collectionId}
             onChange={e=>setCollectionId(e.target.value)}
-            className="input"
+            className="input text-[16px] min-h-[44px]"
           >
             {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -432,7 +437,7 @@ export default function Create() {
           value={title}
           onChange={e=>setTitle(e.target.value)}
           placeholder="Titel"
-          className="input"
+          className="input text-[16px] min-h-[44px]"
         />
 
         {/* RichEditor (MD ↔ visual) */}
@@ -446,7 +451,7 @@ export default function Create() {
           value={tags}
           onChange={e=>setTags(e.target.value)}
           placeholder="Taggar, separera med komma"
-          className="input"
+          className="input text-[16px] min-h-[44px]"
         />
 
         {/* Bilder */}
@@ -480,7 +485,7 @@ export default function Create() {
           </div>
         </div>
 
-        <button className="btn btn-primary">Spara</button>
+        <button className="btn btn-primary min-h-[44px]">Spara</button>
       </form>
 
       {/* Förhandsvisning */}
@@ -513,7 +518,7 @@ export default function Create() {
 function FieldInput({
   field, value, onChange
 }: { field: CollectionField, value: any, onChange: (v:any)=>void }) {
-  const common = 'input'
+  const common = 'input text-[16px] min-h-[44px]'
   if (field.type === 'longtext') {
     return (
       <div>
