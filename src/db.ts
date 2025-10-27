@@ -50,7 +50,7 @@ export async function saveSettings(s: Settings) { await set('settings', s, store
 
 export async function exportAll() {
   const [collections, entries, settings] = await Promise.all([getCollections(), getEntries(), getSettings()])
-  return { collections, entries, settings, version: 1 }
+  return { collections, entries, settings, version: 2 }
 }
 export async function importAll(payload: any) {
   if (!payload) return
