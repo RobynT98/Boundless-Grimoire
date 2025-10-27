@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { VitePWA } from '@vite-pwa/plugin'
+import { VitePWA } from '@vite-pwa/vite'
 
 export default defineConfig({
-  base: '/BoundlessGrimoire/',
+  base: '/Boundless-Grimoire/',
   plugins: [
     react(),
     VitePWA({
