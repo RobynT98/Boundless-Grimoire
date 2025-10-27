@@ -4,7 +4,7 @@ export interface CollectionField {
   key: string;
   label: string;
   type: FieldType;
-  options?: string[];
+  options?: string[]; // för select
 }
 
 export interface Collection {
@@ -20,7 +20,7 @@ export interface Entry {
   title: string;
   contentMD: string;
   tags: string[];
-  images: string[];                // dataURL: enkla inline-bilder (räcker fint i IndexedDB)
+  images: string[];                // dataURL
   relatedIds: string[];            // relationer till andra poster
   custom: Record<string, string | number | boolean | null>;
   createdAt: number;
