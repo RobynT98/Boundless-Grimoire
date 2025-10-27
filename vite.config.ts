@@ -1,3 +1,4 @@
+// vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -8,6 +9,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      devOptions: { enabled: true }, // gör uppdateringar tydliga i dev/preview
+
       includeAssets: [
         'favicon.svg',
         'apple-touch-icon.png',
@@ -16,6 +19,7 @@ export default defineConfig({
         'pwa-512x512.png',
         'maskable-512x512.png'
       ],
+
       manifest: {
         name: 'Boundless Grimoire',
         short_name: 'Grimoire',
@@ -31,9 +35,12 @@ export default defineConfig({
           { src: 'maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
+
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}']
-      }
-    })
-  ]
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+        cleanupOutdatedCaches: true,                 // rensa gamla cache-nycklar
+        navigateFallbackDenylist: [/__vite_ping/],   // undvik att fånga Vite ping
+      },
+    }),
+  ],
 })
