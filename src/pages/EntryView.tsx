@@ -10,10 +10,13 @@ export default function EntryView() {
   const [collections, setCollections] = useState<Collection[]>([])
   const [all, setAll] = useState<Entry[]>([])
   const [isEdit, setIsEdit] = useState(false)
+
+  // lokala editfält
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [tags, setTags] = useState('')
   const [images, setImages] = useState<string[]>([])
+  const [custom, setCustom] = useState<Record<string, any>>({})
 
   useEffect(() => {
     async function load() {
@@ -25,6 +28,7 @@ export default function EntryView() {
       setContent(e?.contentMD || '')
       setTags(e?.tags.join(', ') || '')
       setImages(e?.images ?? [])
+      setCustom(e?.custom ?? {})
       setCollections(await getCollections())
     }
     load()
@@ -35,7 +39,15 @@ export default function EntryView() {
     const list = await getEntries()
     const idx = list.findIndex(x => x.id === entry.id)
     if (idx >= 0) {
-      list[idx] = { ...entry, title, contentMD: content, tags: tags.split(',').map(t=>t.trim()).filter(Boolean), images, updatedAt: Date.now() }
+      list[idx] = {
+        ...entry,
+        title,
+        contentMD: content,
+        tags: tags.split(',').map(t=>t.trim()).filter(Boolean),
+        images,
+        custom,
+        updatedAt: Date.now()
+      }
       await saveEntries(list)
       setEntry(list[idx]); setIsEdit(false)
       alert('Uppdaterat.')
@@ -49,15 +61,31 @@ export default function EntryView() {
 
   if (!entry) return <div className="p-4">Hittar inte posten.</div>
 
+  const activeCollection = collections.find(c=>c.id===entry.collectionId)
   const related = (entry.relatedIds || []).map(rid => all.find(e => e.id === rid)).filter(Boolean) as Entry[]
 
   return (
     <div className="p-4 space-y-4">
       {!isEdit ? (
         <>
-          <div className="text-sm text-neutral-400">{collections.find(c=>c.id===entry.collectionId)?.name}</div>
+          <div className="text-sm text-neutral-400">{activeCollection?.name}</div>
           <h1>{entry.title}</h1>
           <div className="text-xs text-neutral-400">{entry.tags.join(', ')}</div>
+
+          {/* Visa egendefinierade fält */}
+          {activeCollection && activeCollection.fields.length>0 && (
+            <div className="card p-4">
+              <h2 className="mb-2">Fält</h2>
+              <dl className="grid grid-cols-1 gap-2">
+                {activeCollection.fields.map(f => (
+                  <div key={f.key} className="grid grid-cols-3 gap-2">
+                    <dt className="text-neutral-400 col-span-1">{f.label}</dt>
+                    <dd className="col-span-2">{String(entry.custom?.[f.key] ?? '')}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
 
           {entry.images?.length>0 && (
             <div className="grid grid-cols-3 gap-2">
@@ -90,6 +118,34 @@ export default function EntryView() {
           <input value={title} onChange={e=>setTitle(e.target.value)} className="w-full bg-neutral-900 p-2 rounded"/>
           <textarea value={content} onChange={e=>setContent(e.target.value)} rows={10} className="w-full bg-neutral-900 p-2 rounded"></textarea>
           <input value={tags} onChange={e=>setTags(e.target.value)} className="w-full bg-neutral-900 p-2 rounded"/>
+
+          {/* Edit av custom-fält */}
+          {activeCollection && activeCollection.fields.length>0 && (
+            <div className="card p-3">
+              <h2 className="mb-2">Fält</h2>
+              <div className="grid grid-cols-1 gap-3">
+                {activeCollection.fields.map(f => (
+                  <div key={f.key}>
+                    <label className="block text-sm mb-1">{f.label}</label>
+                    {f.type === 'longtext' ? (
+                      <textarea rows={4} className="w-full bg-neutral-900 p-2 rounded" value={custom[f.key] ?? ''} onChange={e=>setCustom(prev=>({...prev,[f.key]:e.target.value}))}/>
+                    ) : f.type === 'number' ? (
+                      <input type="number" className="w-full bg-neutral-900 p-2 rounded" value={custom[f.key] ?? ''} onChange={e=>setCustom(prev=>({...prev,[f.key]: Number(e.target.value)}))}/>
+                    ) : f.type === 'date' ? (
+                      <input type="date" className="w-full bg-neutral-900 p-2 rounded" value={custom[f.key] ?? ''} onChange={e=>setCustom(prev=>({...prev,[f.key]:e.target.value}))}/>
+                    ) : f.type === 'select' ? (
+                      <select className="w-full bg-neutral-900 p-2 rounded" value={custom[f.key] ?? ''} onChange={e=>setCustom(prev=>({...prev,[f.key]:e.target.value}))}>
+                        <option value="">—</option>
+                        {(f.options||[]).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    ) : (
+                      <input className="w-full bg-neutral-900 p-2 rounded" value={custom[f.key] ?? ''} onChange={e=>setCustom(prev=>({...prev,[f.key]:e.target.value}))}/>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {images.length>0 && (
             <div className="grid grid-cols-3 gap-2">
