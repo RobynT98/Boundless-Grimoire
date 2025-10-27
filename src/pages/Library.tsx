@@ -1,3 +1,4 @@
+// src/pages/Library.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { getCollections, getEntries } from '../db'
 import type { Collection, Entry } from '../types'
