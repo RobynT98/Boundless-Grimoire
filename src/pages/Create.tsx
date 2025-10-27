@@ -100,7 +100,8 @@ export default function Create() {
       const key = autoTemplateFor(collectionId)
       setContent(TEMPLATES[key] || '')
     }
-  }, [collectionId, collections]) // eslint-disable-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collectionId, collections])
 
   function applyTemplate(k: TemplateKey) {
     setTpl(k)
@@ -168,12 +169,7 @@ export default function Create() {
                 <button
                   key={t.key}
                   onClick={() => applyTemplate(t.key)}
-                  className={[
-                    "whitespace-nowrap px-3 py-1.5 rounded-full text-sm transition",
-                    active
-                      ? "bg-amber-600/90 text-black shadow ring-1 ring-amber-400"
-                      : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
-                  ].join(' ')}
+                  className={`btn rounded-full ${active ? 'btn-active' : ''}`}
                   aria-pressed={active}
                   title={t.label + '-mall'}
                 >
@@ -189,7 +185,11 @@ export default function Create() {
         {/* Samling */}
         <div>
           <label className="block text-sm mb-1">Samling</label>
-          <select value={collectionId} onChange={e=>setCollectionId(e.target.value)} className="w-full bg-neutral-900 p-2 rounded">
+          <select
+            value={collectionId}
+            onChange={e=>setCollectionId(e.target.value)}
+            className="input"
+          >
             {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -212,9 +212,25 @@ export default function Create() {
         )}
 
         {/* Grundmetadata */}
-        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Titel" className="w-full bg-neutral-900 p-2 rounded" />
-        <textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="Markdown-innehåll (långa anteckningar välkomna)" rows={10} className="w-full bg-neutral-900 p-2 rounded"></textarea>
-        <input value={tags} onChange={e=>setTags(e.target.value)} placeholder="Taggar, separera med komma" className="w-full bg-neutral-900 p-2 rounded" />
+        <input
+          value={title}
+          onChange={e=>setTitle(e.target.value)}
+          placeholder="Titel"
+          className="input"
+        />
+        <textarea
+          value={content}
+          onChange={e=>setContent(e.target.value)}
+          placeholder="Markdown-innehåll (långa anteckningar välkomna)"
+          rows={10}
+          className="input"
+        />
+        <input
+          value={tags}
+          onChange={e=>setTags(e.target.value)}
+          placeholder="Taggar, separera med komma"
+          className="input"
+        />
 
         {/* Bilder */}
         <div>
@@ -230,7 +246,7 @@ export default function Create() {
         {/* Relationer */}
         <div>
           <label className="block text-sm mb-1">Relaterade poster</label>
-          <div className="max-h-40 overflow-auto border border-neutral-800 rounded p-2 space-y-1">
+          <div className="max-h-40 overflow-auto border border-app rounded p-2 space-y-1">
             {candidates.map(e => (
               <label key={e.id} className="flex items-center gap-2 text-sm">
                 <input
@@ -243,11 +259,11 @@ export default function Create() {
                 <span>{e.title}</span>
               </label>
             ))}
-            {candidates.length===0 && <div className="text-neutral-500 text-sm">Inga kandidater ännu.</div>}
+            {candidates.length===0 && <div className="text-muted text-sm">Inga kandidater ännu.</div>}
           </div>
         </div>
 
-        <button className="bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded">Spara</button>
+        <button className="btn btn-primary">Spara</button>
       </form>
 
       {/* Förhandsvisning */}
@@ -260,7 +276,7 @@ export default function Create() {
             <dl className="grid grid-cols-1 gap-2">
               {activeCollection.fields.map(f => (
                 <div key={f.key} className="grid grid-cols-3 gap-2">
-                  <dt className="text-neutral-400 col-span-1">{f.label}</dt>
+                  <dt className="text-muted col-span-1">{f.label}</dt>
                   <dd className="col-span-2">{String(custom[f.key] ?? '')}</dd>
                 </div>
               ))}
@@ -268,41 +284,54 @@ export default function Create() {
           </div>
         )}
 
-        <div className="card p-4 prose prose-invert max-w-none" dangerouslySetInnerHTML={{__html: previewHTML}}></div>
+        <div
+          className="card p-4 prose max-w-none"
+          dangerouslySetInnerHTML={{__html: previewHTML}}
+        />
       </div>
     </div>
   )
 }
 
-function FieldInput({ field, value, onChange }: { field: CollectionField, value: any, onChange: (v:any)=>void }) {
-  const common = 'w-full bg-neutral-900 p-2 rounded'
-  if (field.type === 'longtext') return (
-    <div>
-      <label className="block text-sm mb-1">{field.label}</label>
-      <textarea rows={4} className={common} value={value ?? ''} onChange={e=>onChange(e.target.value)} />
-    </div>
-  )
-  if (field.type === 'select') return (
-    <div>
-      <label className="block text-sm mb-1">{field.label}</label>
-      <select className={common} value={value ?? ''} onChange={e=>onChange(e.target.value)}>
-        <option value="">—</option>
-        {(field.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-      </select>
-    </div>
-  )
-  if (field.type === 'number') return (
-    <div>
-      <label className="block text-sm mb-1">{field.label}</label>
-      <input type="number" className={common} value={value ?? ''} onChange={e=>onChange(Number(e.target.value))} />
-    </div>
-  )
-  if (field.type === 'date') return (
-    <div>
-      <label className="block text-sm mb-1">{field.label}</label>
-      <input type="date" className={common} value={value ?? ''} onChange={e=>onChange(e.target.value)} />
-    </div>
-  )
+function FieldInput({
+  field, value, onChange
+}: { field: CollectionField, value: any, onChange: (v:any)=>void }) {
+  const common = 'input'
+  if (field.type === 'longtext') {
+    return (
+      <div>
+        <label className="block text-sm mb-1">{field.label}</label>
+        <textarea rows={4} className={common} value={value ?? ''} onChange={e=>onChange(e.target.value)} />
+      </div>
+    )
+  }
+  if (field.type === 'select') {
+    return (
+      <div>
+        <label className="block text-sm mb-1">{field.label}</label>
+        <select className={common} value={value ?? ''} onChange={e=>onChange(e.target.value)}>
+          <option value="">—</option>
+          {(field.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
+      </div>
+    )
+  }
+  if (field.type === 'number') {
+    return (
+      <div>
+        <label className="block text-sm mb-1">{field.label}</label>
+        <input type="number" className={common} value={value ?? ''} onChange={e=>onChange(Number(e.target.value))} />
+      </div>
+    )
+  }
+  if (field.type === 'date') {
+    return (
+      <div>
+        <label className="block text-sm mb-1">{field.label}</label>
+        <input type="date" className={common} value={value ?? ''} onChange={e=>onChange(e.target.value)} />
+      </div>
+    )
+  }
   return (
     <div>
       <label className="block text-sm mb-1">{field.label}</label>
