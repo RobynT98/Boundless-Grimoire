@@ -1,3 +1,4 @@
+// src/main.tsx (eller src/index.tsx – samma innehåll)
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
@@ -10,10 +11,28 @@ import { ThemeStore } from './theme'
 // Initiera tema direkt
 ThemeStore.init()
 
-registerSW({
+// --- PWA / Service Worker ---
+// Autouppdatera SW och ladda om när ny version är redo
+const updateSW = registerSW({
   immediate: true,
-  onRegistered(r) { console.log('[PWA] registered', r) },
-  onRegisterError(err) { console.error('[PWA] register error', err) }
+
+  // Håll SW:n fräsch (check var 60:e sekund – valfritt)
+  onRegisteredSW(_url, reg) {
+    if (reg) setInterval(() => reg.update(), 60 * 1000)
+  },
+
+  // När pluginen säger att en refresh behövs – hoppa till nya versionen
+  onNeedRefresh() {
+    updateSW(true) // skipWaiting + clientsClaim
+  },
+
+  onOfflineReady() {
+    console.log('[PWA] offline ready')
+  },
+
+  onRegisterError(err) {
+    console.error('[PWA] register error', err)
+  },
 })
 
 // beforeinstallprompt → global
