@@ -5,9 +5,6 @@ import type { Entry, Collection } from '../types'
 import { marked } from 'marked'
 import RichEditor from '../components/RichEditor'
 
-/** Om innehållet ”ser ut som HTML”, rendera det direkt – annars MD → HTML */
-const looksLikeHTML = (s: string) => /<\s*[a-z][\s\S]*>/i.test(s)
-
 export default function EntryView() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -71,12 +68,10 @@ export default function EntryView() {
     navigate('/search')
   }
 
-  // Markdown/HTML → HTML för visningsläge
+  // Markdown/HTML → HTML för visningsläge (alltid via marked)
   const html = useMemo(() => {
     const raw = entry?.contentMD || ''
-    return looksLikeHTML(raw)
-      ? raw
-      : (marked.parse(raw, { async: false }) as string)
+    return marked.parse(raw, { async: false }) as string
   }, [entry])
 
   if (!entry) {
