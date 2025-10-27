@@ -139,3 +139,59 @@ input[type="text"], input[type="number"], input[type="date"] {
 html[data-theme="light"] .tab-active{
   color: #0a0a0a; /* säker text i ljust tema */
 }
+/* ==== Finjusteringar för teman (framförallt Pergament) ==== */
+
+/* mjukare panelton för kontroller */
+:root {
+  --panel-soft: color-mix(in oklab, var(--panel), var(--bg) 35%);
+  --accent-ink: #0b0b0b; /* text på accent */
+}
+
+/* Inputs & selects – bättre kontrast i ljusa teman */
+.input, select, textarea,
+input[type="text"], input[type="number"], input[type="date"] {
+  background: var(--panel-soft);
+}
+
+/* Placeholder synlig i alla teman */
+::placeholder { color: color-mix(in oklab, var(--muted), var(--bg) 10%); opacity: .9; }
+
+/* Sekundär & ghost-knappar för startsidan */
+.btn-secondary {
+  background: var(--panel-soft);
+  border-color: var(--border);
+  color: var(--text);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text);
+}
+
+/* Primär knapp: säker textfärg och liten hover */
+.btn-primary, .btn-active {
+  color: var(--accent-ink) !important;
+}
+.btn-primary:hover { filter: brightness(1.06); }
+
+/* Kort & sektioner får jämn padding/avrundning */
+.section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 20px var(--shadow);
+}
+
+/* Huvudyta rundas i toppen så pergament känns "kort-likt" */
+.page {
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+  background: var(--bg);
+}
+
+/* Top safe-area och lite luft under header */
+.safe-top { padding-top: max(12px, env(safe-area-inset-top)); }
+
+/* Tabbar: aktiv etikett får lite fetstil för tydlighet */
+.tab-active .tab-label { font-weight: 600; }
