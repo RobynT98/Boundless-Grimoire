@@ -10,18 +10,20 @@ export default function SettingsPage() {
 
   useEffect(()=>{ getSettings().then(setSettings)}, [])
 
-  // PWA install-event
+  // 1) Lyssna på vår custom-signal OCH hämta ev. redan sparat event
   useEffect(() => {
-    function handler(e: any) {
-      e.preventDefault()
-      setDeferred(e)
-      setCanInstall(true)
+    const ready = () => {
+      // @ts-ignore
+      const dp = (window as any).deferredPrompt || null
+      setDeferred(dp)
+      setCanInstall(!!dp)
     }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    window.addEventListener('pwa:beforeinstallprompt', ready)
+    ready() // direkt, ifall eventet redan skett
+    return () => window.removeEventListener('pwa:beforeinstallprompt', ready)
   }, [])
 
-  // Visa enkel SW-status
+  // 2) Visa enkel SW-status
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then(reg => {
@@ -36,6 +38,8 @@ export default function SettingsPage() {
     const res = await deferred.userChoice
     setDeferred(null)
     setCanInstall(false)
+    // @ts-ignore
+    ;(window as any).deferredPrompt = null
     alert(res.outcome === 'accepted' ? 'Installerad (eller på väg)!' : 'Avbrutet.')
   }
 
@@ -43,25 +47,16 @@ export default function SettingsPage() {
     const data = await exportAll()
     const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'})
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'boundless-grimoire-backup.json'
-    a.click()
+    const a = document.createElement('a'); a.href = url; a.download = 'boundless-grimoire-backup.json'; a.click()
     URL.revokeObjectURL(url)
   }
-
   async function onImport(e: any) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const text = await file.text()
-    await importAll(JSON.parse(text))
+    const file = e.target.files?.[0]; if (!file) return
+    const text = await file.text(); await importAll(JSON.parse(text))
     alert('Importerat! Ladda om sidan för att se allt.')
   }
-
   async function update<K extends keyof Settings>(key: K, value: Settings[K]) {
-    const next = {...settings, [key]: value}
-    setSettings(next)
-    await saveSettings(next)
+    const next = {...settings, [key]: value}; setSettings(next); await saveSettings(next)
   }
 
   return (
@@ -97,7 +92,7 @@ export default function SettingsPage() {
           Installera Boundless Grimoire
         </button>
         <div className="text-xs text-neutral-500 mt-2">
-          Tips: om knappen är grå, öppna sidan, vänta 2–3 sekunder och ladda om en gång till.
+          Tips: öppna sidan, vänta 2–3 sekunder, gå till Inställningar. Om knappen är grå: ladda om en gång.
         </div>
       </section>
 
