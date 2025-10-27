@@ -8,30 +8,40 @@ import EntryView from './pages/EntryView'
 
 export default function App() {
   return (
-    <div className="min-h-screen pb-16 grain">
+    // extra bottenpadding så innehållet inte hamnar under tabbaren
+    <div className="min-h-screen pb-[76px] grain">
       <Routes>
-        <Route path="/" element={<Home/>} />
-        <Route path="/library" element={<Library/>} />
-        <Route path="/create" element={<Create/>} />
-        <Route path="/search" element={<Search/>} />
-        <Route path="/settings" element={<Settings/>} />
-        <Route path="/entry/:id" element={<EntryView/>} />
+        <Route path="/" element={<Home />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/create" element={<Create />} />
+        <Route path="/search" element={<Search />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/entry/:id" element={<EntryView />} />
       </Routes>
 
-      <nav className="tabbar">
-        <Tab to="/">🏛️<span>Hem</span></Tab>
-        <Tab to="/library">📚<span>Bibliotek</span></Tab>
-        <Tab to="/create">✍️<span>Skapa</span></Tab>
-        <Tab to="/search">🔎<span>Sök</span></Tab>
-        <Tab to="/settings">⚙️<span>Inställningar</span></Tab>
+      {/* Bottom nav */}
+      <nav className="tabbar" role="navigation" aria-label="Huvudnavigering">
+        <Tab to="/" end icon="🏛️" label="Hem" />
+        <Tab to="/library" icon="📚" label="Bibliotek" />
+        <Tab to="/create" icon="🖋️" label="Skapa" />
+        <Tab to="/search" icon="🔎" label="Sök" />
+        <Tab to="/settings" icon="⚙️" label="Inställningar" />
       </nav>
     </div>
   )
 }
-function Tab({ to, children }: { to: string, children: any }) {
+
+function Tab(props: { to: string; label: string; icon: string; end?: boolean }) {
+  const { to, label, icon, end } = props
   return (
-    <NavLink to={to} className={({isActive}) => isActive ? 'active' : '' }>
-      <div className="text-xl">{children}</div>
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) => 'tab-item' + (isActive ? ' tab-active' : '')}
+      aria-label={label}
+    >
+      <span className="tab-ico" aria-hidden>{icon}</span>
+      <span className="tab-label">{label}</span>
     </NavLink>
   )
 }
