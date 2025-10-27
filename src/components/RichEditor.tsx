@@ -24,7 +24,6 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
 
   const [mode, setMode] = useState<'md' | 'visual'>('md')
   const [htmlShadow, setHtmlShadow] = useState<string>(initialHTML)
-  const [showHelp, setShowHelp] = useState(false)
 
   const editor = useEditor({
     extensions: [
@@ -56,6 +55,9 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     },
   })
 
+  // textarea-ref för MD-läget (för att kunna infoga länk vid markören)
+  const mdRef = useRef<HTMLTextAreaElement>(null)
+
   useEffect(() => {
     const nextHTML = marked.parse(value || '', { async: false }) as string
     setHtmlShadow(nextHTML)
@@ -70,12 +72,10 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     if (next === 'visual' && editor) {
       editor.commands.setContent(marked.parse(value || '', { async: false }) as string, false)
     }
-    if (next === 'md') setShowHelp(false)
   }
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  function promptLink() {
+  // ------- LÄNK (fungerar i båda lägen) -------
+  function promptLinkVisual() {
     if (!editor) return
     const existing = editor.getAttributes('link').href as string | undefined
     const url = window.prompt('Länkadress (https://…):', existing || '')
@@ -87,6 +87,39 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     }
   }
 
+  function insertAtCursor(el: HTMLTextAreaElement, snippet: string) {
+    const start = el.selectionStart ?? el.value.length
+    const end = el.selectionEnd ?? el.value.length
+    const before = el.value.slice(0, start)
+    const after = el.value.slice(end)
+    const next = before + snippet + after
+    onChange(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      const pos = start + snippet.length
+      el.selectionStart = el.selectionEnd = pos
+    })
+  }
+
+  function promptLinkMarkdown() {
+    const el = mdRef.current
+    if (!el) return
+    const text = window.prompt('Text att visa:', '')
+    if (text === null) return
+    const url = window.prompt('Länkadress (https://…):', 'https://')
+    if (url === null || url.trim() === '') return
+    const snippet = `[${text || 'länk'}](${url.trim()})`
+    insertAtCursor(el, snippet)
+  }
+
+  function handleLinkClick() {
+    if (mode === 'visual') promptLinkVisual()
+    else promptLinkMarkdown()
+  }
+  // -------------------------------------------
+
+  // Övrig toolbar (visual)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   async function pickImage(e?: React.ChangeEvent<HTMLInputElement>) {
     if (!editor) return
     const files = e?.target?.files
@@ -94,7 +127,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     const arr = await Promise.all(
       Array.from(files).map(
         f =>
-          new Promise<string>((res) => {
+          new Promise<string>(res => {
             const r = new FileReader()
             r.onload = () => res(r.result as string)
             r.readAsDataURL(f)
@@ -110,129 +143,81 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
     if (!editor) return
     editor.chain().focus().setColor(ev.target.value).run()
   }
-
   function setFont(family: string) {
     if (!editor) return
     if (family === 'system') editor.chain().focus().unsetFontFamily().run()
     else editor.chain().focus().setFontFamily(resolveFontFamily(family)).run()
   }
-
   function resolveFontFamily(key: string) {
     switch (key) {
-      case 'serif': return 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif'
-      case 'mono': return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-      case 'callig': return '"Segoe Script","Bradley Hand","Comic Sans MS","Apple Chancery",cursive'
-      default: return 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif'
+      case 'serif':
+        return 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif'
+      case 'mono':
+        return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+      case 'callig':
+        return '"Segoe Script","Bradley Hand","Comic Sans MS","Apple Chancery",cursive'
+      default:
+        return 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif'
     }
   }
 
+  // Hjälp-popup (diskret)
+  const [showHelp, setShowHelp] = useState(false)
+
   return (
     <div className="space-y-2">
-      {/* Läge + diskret hjälpknapp för MD */}
-      <div className="inline-flex gap-2 items-center">
-        <button
-          type="button"
-          className={`btn ${mode==='md' ? 'btn-active' : ''}`}
-          onClick={() => switchMode('md')}
-          aria-controls="md-help"
-          aria-expanded={mode === 'md' && showHelp ? true : false}
-        >
-          Markdown
-        </button>
-        <button
-          type="button"
-          className={`btn ${mode==='visual' ? 'btn-active' : ''}`}
-          onClick={() => switchMode('visual')}
-        >
-          Visuell
-        </button>
-
-        {mode === 'md' && (
+      {/* Topbar – alltid synlig */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="inline-flex gap-2">
           <button
             type="button"
-            className="btn text-sm"
-            onClick={() => setShowHelp(v => !v)}
-            aria-controls="md-help"
-            aria-expanded={showHelp}
-            title="Snabbguide för Markdown"
+            className={`btn ${mode === 'md' ? 'btn-active' : ''}`}
+            onClick={() => switchMode('md')}
+            aria-pressed={mode === 'md'}
           >
-            Hjälp
+            Markdown
           </button>
-        )}
+          <button
+            type="button"
+            className={`btn ${mode === 'visual' ? 'btn-active' : ''}`}
+            onClick={() => switchMode('visual')}
+            aria-pressed={mode === 'visual'}
+          >
+            Visuell
+          </button>
+        </div>
+
+        {/* Alltid: Länk + Hjälp (diskret) */}
+        <button type="button" className="btn" onClick={handleLinkClick} title="Infoga länk">
+          🔗 Länk
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setShowHelp(s => !s)}
+          aria-expanded={showHelp}
+          title="Markdown-hjälp"
+        >
+          ?
+        </button>
       </div>
 
-      {/* Utfällbar MD-hjälp (diskret) */}
-      {mode === 'md' && (
-        <div
-          id="md-help"
-          className={`overflow-hidden transition-[max-height,opacity] duration-200 ${
-            showHelp ? 'opacity-100 max-h-[520px]' : 'opacity-0 max-h-0'
-          }`}
-        >
-          <div className="mt-1 rounded border border-app bg-panel p-3 text-sm leading-6 space-y-2">
-            <div className="font-semibold">🧭 Snabbguide</div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-muted">Rubriker</div>
-                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
-{`# H1
-## H2
-### H3`}
-                </pre>
-              </div>
-              <div>
-                <div className="text-muted">Stil</div>
-                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
-{`**fet**   *kursiv*   ~~genomstruken~~`}
-                </pre>
-              </div>
-
-              <div>
-                <div className="text-muted">Listor</div>
-                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
-{`- punkt
-- en till
-
-1. första
-2. andra`}
-                </pre>
-              </div>
-              <div>
-                <div className="text-muted">Länk & Bild</div>
-                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
-{`[text](https://adress)
-![alt](https://bild)`}
-                </pre>
-              </div>
-
-              <div>
-                <div className="text-muted">Citat</div>
-                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
-{`> Ett citat
-> över flera rader`}
-                </pre>
-              </div>
-              <div>
-                <div className="text-muted">Kod</div>
-                <pre className="whitespace-pre-wrap bg-black/20 rounded p-2 text-xs">
-{`\`inline\`
-
-\`\`\`
-fleradig kod
-\`\`\``}
-                </pre>
-              </div>
-            </div>
-
-            <div className="text-xs text-muted">
-              Tips: tom rad mellan stycken. Tre streck för avdelare: <code>---</code>
-            </div>
-          </div>
+      {/* Liten hjälp-panel, bara i MD-läget och när togglad */}
+      {mode === 'md' && showHelp && (
+        <div className="text-xs text-muted border border-app rounded p-2 bg-panel">
+          <div className="mb-1 font-semibold">Markdown-kortkommandon</div>
+          <ul className="space-y-0.5">
+            <li><code>#</code> Rubrik 1, <code>##</code> Rubrik 2</li>
+            <li><code>**bold**</code>, <code>*italic*</code>, <code>__underline__</code></li>
+            <li><code>-</code> punktlista, <code>1.</code> numrerad</li>
+            <li><code>&gt; citat</code>, <code>```</code> kodblock</li>
+            <li><code>[text](https://…)</code> länk – eller klicka 🔗 ovan</li>
+            <li><code>![alt](bild.png)</code> bild</li>
+          </ul>
         </div>
       )}
 
-      {/* Toolbar (endast i visuellt läge) */}
+      {/* Toolbar för VISUELLT läge */}
       {mode === 'visual' && (
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button>
@@ -246,8 +231,8 @@ fleradig kod
           <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
           <button type="button" className="btn" onClick={() => editor?.chain().focus().toggleBlockquote().run()}>❝</button>
 
-          <button type="button" className="btn" onClick={promptLink}>Länk</button>
-
+          {/* Länk hanteras via handleLinkClick så samma knapp funkar i båda lägen */}
+          {/* Bild */}
           <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={pickImage}/>
           <button type="button" className="btn" onClick={() => fileInputRef.current?.click()}>Bild</button>
 
@@ -275,6 +260,7 @@ fleradig kod
         <EditorContent editor={editor} />
       ) : (
         <textarea
+          ref={mdRef}
           className="input min-h-[220px]"
           placeholder={placeholder || 'Markdown eller visuellt – välj vad som känns bäst.'}
           value={value}
