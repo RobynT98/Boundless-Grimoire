@@ -1,17 +1,16 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { HashRouter } from 'react-router-dom'
-import App from './App'
-import './index.css'
+// Gör beforeinstallprompt globalt så vi inte missar det på SPA-rutter
+declare global {
+  interface Window { deferredPrompt?: any }
+}
 
-// PWA: registrera service worker
-import { registerSW } from 'virtual:pwa-register'
-registerSW({ immediate: true })
+window.addEventListener('beforeinstallprompt', (e: any) => {
+  e.preventDefault()
+  window.deferredPrompt = e
+  // skicka en egen signal som sidor kan lyssna på
+  window.dispatchEvent(new Event('pwa:beforeinstallprompt'))
+})
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <HashRouter>
-      <App />
-    </HashRouter>
-  </React.StrictMode>
-)
+window.addEventListener('appinstalled', () => {
+  // nollställ när appen installerats
+  window.deferredPrompt = null
+})
