@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getCollections, getEntries, saveEntries } from '../db'
 import type { Entry, Collection } from '../types'
 import { marked } from 'marked'
+import RichEditor from '../components/RichEditor'
 
 export default function EntryView() {
   const { id } = useParams()
@@ -164,13 +165,10 @@ export default function EntryView() {
             className="input"
             placeholder="Titel"
           />
-          <textarea
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            rows={10}
-            className="input"
-            placeholder="Markdown-innehåll…"
-          />
+
+          {/* RichEditor i edit-läget */}
+          <RichEditor value={content} onChange={setContent} />
+
           <input
             value={tags}
             onChange={e => setTags(e.target.value)}
@@ -186,6 +184,7 @@ export default function EntryView() {
                 {activeCollection.fields.map(f => (
                   <div key={f.key}>
                     <label className="block text-sm text-muted mb-1">{f.label}</label>
+                    {/* typer */}
                     {f.type === 'longtext' ? (
                       <textarea
                         rows={4}
