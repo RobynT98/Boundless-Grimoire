@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 
-const items = [
-  { to: '/',          label: 'Hem',          icon: '🏛️' },
+const tabs = [
+  { to: '/',          label: 'Hem',          icon: '🏛️', end: true },
   { to: '/library',   label: 'Bibliotek',    icon: '📚' },
   { to: '/create',    label: 'Skapa',        icon: '🖋️' },
   { to: '/search',    label: 'Sök',          icon: '🔎' },
@@ -10,18 +10,19 @@ const items = [
 
 export default function BottomNav() {
   return (
-    <nav className="tabbar" role="navigation" aria-label="Bottom">
-      {items.map((it) => (
+    <nav className="tabbar" role="navigation" aria-label="Huvudnavigering">
+      {tabs.map(tab => (
         <NavLink
-          key={it.to}
-          to={it.to}
-          end={it.to === '/'}
+          key={tab.to}
+          to={tab.to}
+          end={tab.end}
           className={({ isActive }) =>
             'tab-item' + (isActive ? ' tab-active' : '')
           }
+          aria-label={tab.label}
         >
-          <span className="tab-ico" aria-hidden>{it.icon}</span>
-          <span className="tab-label">{it.label}</span>
+          <span className="tab-ico" aria-hidden>{tab.icon}</span>
+          <span className="tab-label">{tab.label}</span>
         </NavLink>
       ))}
     </nav>
