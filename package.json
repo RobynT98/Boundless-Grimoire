@@ -14,7 +14,6 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-router-dom": "6.26.2",
-
     "@tiptap/react": "2.6.6",
     "@tiptap/starter-kit": "2.6.6",
     "@tiptap/extension-link": "2.6.6",
@@ -25,9 +24,9 @@
     "@tiptap/extension-placeholder": "2.6.6",
     "@tiptap/extension-highlight": "2.6.6",
     "@tiptap/extension-font-family": "2.6.6",
-
     "tiptap-markdown": "0.8.10",
-    "turndown": "7.2.0"
+    "turndown": "7.2.0",
+    "dompurify": "3.0.11"
   },
   "devDependencies": {
     "@types/react": "18.3.5",
