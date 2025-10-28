@@ -2,36 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getCollections, getEntries } from '../db'
 import type { Collection, Entry } from '../types'
 import { Link, useSearchParams } from 'react-router-dom'
-import { marked } from 'marked'
-
-/* ---------- MD/HTML → ren text (för snippets) ---------- */
-function mdToPlain(mdOrHtml: string, title?: string): string {
-  const raw = mdOrHtml || ''
-  const html = marked.parse(raw, { async: false }) as string
-
-  if (typeof window === 'undefined') {
-    let txt = html.replace(/<[^>]+>/g, ' ')
-    txt = txt.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
-    if (title) txt = stripLeadingTitle(txt, title)
-    return txt
-  }
-
-  const div = document.createElement('div')
-  div.innerHTML = html
-  const firstHeading = div.querySelector('h1, h2')
-  if (firstHeading) firstHeading.remove()
-
-  let text = (div.textContent || div.innerText || '')
-  text = text.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
-  if (title) text = stripLeadingTitle(text, title)
-  return text
-}
-function stripLeadingTitle(text: string, title: string): string {
-  const t = title.trim()
-  if (!t) return text
-  const rx = new RegExp('^' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[–—:\\-]\\s*', 'i')
-  return text.replace(rx, '').trim()
-}
+import { mdToPlain } from '../lib/md'
 
 export default function Search() {
   const [q, setQ] = useState('')
@@ -99,7 +70,7 @@ export default function Search() {
 
       <div className="grid grid-cols-1 gap-3">
         {results.map(e => {
-          const plain = mdToPlain(e.contentMD, e.title)
+          const plain = mdToPlain(e.contentMD)
           const snippet = plain.slice(0, 140)
 
           return (
@@ -115,7 +86,10 @@ export default function Search() {
               {e.tags?.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {e.tags.slice(0, 5).map(t => (
-                    <span key={t} className="px-2 py-0.5 rounded text-[12px] border-app border text-main">
+                    <span
+                      key={t}
+                      className="px-2 py-0.5 rounded text-[12px] border-app border text-main"
+                    >
                       #{t}
                     </span>
                   ))}
@@ -131,7 +105,9 @@ export default function Search() {
           )
         })}
 
-        {results.length === 0 && <div className="text-muted">Inga träffar.</div>}
+        {results.length === 0 && (
+          <div className="text-muted">Inga träffar.</div>
+        )}
       </div>
     </div>
   )
