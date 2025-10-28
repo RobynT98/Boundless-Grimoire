@@ -1,4 +1,3 @@
-// src/pages/Library.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { getCollections, getEntries } from '../db'
 import type { Collection, Entry } from '../types'
@@ -17,15 +16,19 @@ export default function Library() {
 
   const counts = useMemo(() => {
     const map = new Map<string, number>()
-    for (const e of entries) map.set(e.collectionId, (map.get(e.collectionId) || 0) + 1)
+    for (const e of entries) {
+      map.set(e.collectionId, (map.get(e.collectionId) || 0) + 1)
+    }
     return map
   }, [entries])
 
   const recentByCollection = useMemo(() => {
     const grouped: Record<string, Entry[]> = {}
-    for (const e of entries) (grouped[e.collectionId] ||= []).push(e)
+    for (const e of entries) {
+      (grouped[e.collectionId] ||= []).push(e)
+    }
     for (const k of Object.keys(grouped)) {
-      grouped[k] = grouped[k].sort((a,b)=>b.updatedAt - a.updatedAt).slice(0,2)
+      grouped[k] = grouped[k].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 2)
     }
     return grouped
   }, [entries])
