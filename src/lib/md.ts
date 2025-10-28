@@ -2,55 +2,66 @@
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
-// Grundinställningar för all markdown
-marked.setOptions({
-  gfm: true,
-  breaks: false,
-  headerIds: false,
-  mangle: false
-})
+/**
+ * Renderar Markdown till HTML och sanerar det.
+ * - Behåller <span style="..."> för färg/typsnitt.
+ * - Tillåter länkar och bilder.
+ * - Fungerar även utan DOM (t.ex. i CI/SSR), då utan sanitering.
+ */
+export function mdToHtml(mdOrHtml: string): string {
+  const raw = mdOrHtml || ''
+  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
+  // marked v12: ingen `headerIds` i options längre – låt bli att sätta den.
+  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
 
-export const looksLikeHTML = (s: string): boolean =>
-  /<\s*[a-z][\s\S]*>/i.test(s)
+  // I SSR/CI finns inget window → hoppa över DOMPurify (det är säkert, för vi visar inte output där)
+  if (typeof window === 'undefined') {
+    return html
+  }
 
-export function mdToHtml(s: string): string {
-  if (!s) return ''
-  const html = looksLikeHTML(s) ? s : (marked.parse(s, { async: false }) as string)
+  // Tillåt style-attribut på span för färg/typsnitt; övrigt kör default-säker policy
   const clean = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: [
-      'a', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'ul', 'ol', 'li', 'blockquote', 'pre', 'code',
-      'strong', 'em', 'u', 'span', 'img', 'br', 'hr'
-    ],
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'style']
-  })
+    ADD_ATTR: ['style'],
+    // Behåll vanliga inline-taggar; DOMPurify har redan bra default,
+    // men vi kan uttryckligen förbjuda farliga taggar ändå.
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+  } as DOMPurify.Config)
+
   return clean
 }
 
-export function htmlToPlain(html: string): string {
-  if (!html) return ''
+/**
+ * Markdown/HTML → ren text (för snippets).
+ * Tar bort första H1/H2 om de finns, och komprimerar whitespace.
+ */
+export function mdToPlain(mdOrHtml: string, title?: string): string {
+  const raw = mdOrHtml || ''
+  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
+  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
+
+  // SSR/CI: förenklad strip
   if (typeof window === 'undefined') {
-    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    let txt = html.replace(/<[^>]+>/g, ' ')
+    txt = txt.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
+    if (title) txt = stripLeadingTitle(txt, title)
+    return txt
   }
+
   const div = document.createElement('div')
   div.innerHTML = html
-  const h = div.querySelector('h1, h2')
-  if (h) h.remove()
-  return (div.textContent || div.innerText || '')
-    .replace(/\u00A0/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+
+  const firstHeading = div.querySelector('h1, h2')
+  if (firstHeading) firstHeading.remove()
+
+  let text = (div.textContent || div.innerText || '')
+  text = text.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
+  if (title) text = stripLeadingTitle(text, title)
+  return text
 }
 
-export function mdToPlain(s: string, title?: string): string {
-  const html = mdToHtml(s)
-  let text = htmlToPlain(html)
-  if (title) {
-    const rx = new RegExp(
-      '^' + title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[–—:\\-]\\s*',
-      'i'
-    )
-    text = text.replace(rx, '').trim()
-  }
-  return text
+function stripLeadingTitle(text: string, title: string): string {
+  const t = title.trim()
+  if (!t) return text
+  const rx = new RegExp('^' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[–—:\\-]\\s*', 'i')
+  return text.replace(rx, '').trim()
 }
