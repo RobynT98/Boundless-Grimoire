@@ -24,7 +24,6 @@ function normalizeHtml(html: string): string {
   if (typeof window === 'undefined') return html
   const wrap = document.createElement('div')
   wrap.innerHTML = html
-  // Normalisera style-attribut – låt browsern skriva cssText (städar citattecken m.m.)
   wrap.querySelectorAll<HTMLElement>('span[style]').forEach(el => {
     el.setAttribute('style', el.style.cssText)
   })
@@ -74,7 +73,6 @@ td.addRule('preserveStyledSpan', {
   replacement(content: string, node: Node): string {
     const el = node as HTMLElement
     const raw = el.getAttribute('style') ?? ''
-    // Escapa enkla citattecken så vi kan wrappa i '...'
     const safe = raw.replace(/'/g, '&#39;')
     return `<span style='${safe}'>${content}</span>`
   },
@@ -124,7 +122,7 @@ export default function RichEditor({ value, onChange, placeholder }: Props) {
       },
     },
     onUpdate({ editor }) {
-      // I VISUELLT läge sparar vi HTML direkt → inga backslash-artefakter.
+      // I VISUELLT läge sparar vi HTML direkt
       if (modeRef.current !== 'visual') return
       const html = cleanHtml(normalizeHtml(editor.getHTML()))
       if (html !== value) onChange(html)
