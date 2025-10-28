@@ -291,7 +291,7 @@ export default function Create() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [collectionId, setCollectionId] = useState('notes')
   const [title, setTitle] = useState('')
-  const [content, setContent] = useState('') // MD eller HTML beroende på läge i editorn
+  const [content, setContent] = useState('')
   const [tags, setTags] = useState<string>('')
   const [images, setImages] = useState<string[]>([])
   const [related, setRelated] = useState<string[]>([])
@@ -332,7 +332,7 @@ export default function Create() {
       id: uid(),
       collectionId,
       title: title || '(utan titel)',
-      contentMD: content, // kan vara MD eller HTML – vi renderar robust oavsett
+      contentMD: content, // vi sparar alltid råinmatningen (MD eller HTML)
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       images,
       relatedIds: related,
@@ -355,7 +355,7 @@ export default function Create() {
     alert('Sparat!')
   }
 
-  // Förhandsvisning: robust MD/HTML → säkert HTML
+  // Förhandsvisning (sanitizer + H1/H2 m.m. funkar — via mdToHtml)
   const previewHTML = useMemo(() => mdToHtml(content || ''), [content])
 
   async function onPickImages(files: FileList | null) {
