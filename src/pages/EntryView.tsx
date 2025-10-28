@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getCollections, getEntries, saveEntries } from '../db'
 import type { Entry, Collection } from '../types'
-import { marked } from 'marked'
 import RichEditor from '../components/RichEditor'
+import { mdToHtml } from '../lib/md'
 
 export default function EntryView() {
   const { id } = useParams()
@@ -16,7 +16,7 @@ export default function EntryView() {
 
   // lokala editfält
   const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState('')  // MD eller HTML
   const [tags, setTags] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [custom, setCustom] = useState<Record<string, any>>({})
@@ -47,7 +47,7 @@ export default function EntryView() {
     const updated: Entry = {
       ...entry,
       title,
-      contentMD: content,
+      contentMD: content, // MD eller HTML
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       images,
       custom,
@@ -68,11 +68,8 @@ export default function EntryView() {
     navigate('/search')
   }
 
-  // Markdown/HTML → HTML för visningsläge (alltid via marked)
-  const html = useMemo(() => {
-    const raw = entry?.contentMD || ''
-    return marked.parse(raw, { async: false }) as string
-  }, [entry])
+  // MD/HTML → säkert HTML för visningsläge
+  const html = useMemo(() => mdToHtml(entry?.contentMD || ''), [entry])
 
   if (!entry) {
     return (
