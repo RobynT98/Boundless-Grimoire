@@ -11,19 +11,18 @@ import DOMPurify from 'dompurify'
 export function mdToHtml(mdOrHtml: string): string {
   const raw = mdOrHtml || ''
   const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
-  // marked v12: ingen `headerIds` i options längre – låt bli att sätta den.
+
+  // marked v12: `headerIds` är borttagen, så vi skickar bara minimala options
   const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
 
-  // I SSR/CI finns inget window → hoppa över DOMPurify (det är säkert, för vi visar inte output där)
+  // Om vi inte kör i browser (t.ex. CI) → hoppa över DOMPurify
   if (typeof window === 'undefined') {
     return html
   }
 
-  // Tillåt style-attribut på span för färg/typsnitt; övrigt kör default-säker policy
+  // Sanera HTML men tillåt <span style="..."> för färg/typsnitt
   const clean = DOMPurify.sanitize(html, {
     ADD_ATTR: ['style'],
-    // Behåll vanliga inline-taggar; DOMPurify har redan bra default,
-    // men vi kan uttryckligen förbjuda farliga taggar ändå.
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
   } as DOMPurify.Config)
 
@@ -31,15 +30,15 @@ export function mdToHtml(mdOrHtml: string): string {
 }
 
 /**
- * Markdown/HTML → ren text (för snippets).
- * Tar bort första H1/H2 om de finns, och komprimerar whitespace.
+ * Markdown/HTML → ren text (för snippets, listor osv).
+ * Tar bort första H1/H2 och komprimerar whitespace.
  */
 export function mdToPlain(mdOrHtml: string, title?: string): string {
   const raw = mdOrHtml || ''
   const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
   const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
 
-  // SSR/CI: förenklad strip
+  // SSR/CI-fall: förenklad strip utan DOM
   if (typeof window === 'undefined') {
     let txt = html.replace(/<[^>]+>/g, ' ')
     txt = txt.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
@@ -53,15 +52,22 @@ export function mdToPlain(mdOrHtml: string, title?: string): string {
   const firstHeading = div.querySelector('h1, h2')
   if (firstHeading) firstHeading.remove()
 
-  let text = (div.textContent || div.innerText || '')
+  let text = div.textContent || div.innerText || ''
   text = text.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
   if (title) text = stripLeadingTitle(text, title)
   return text
 }
 
+/**
+ * Tar bort inledande titel (om den matchar rubriken i anteckningen).
+ * Exempel: "Ingefära – egenskaper..." → "egenskaper..."
+ */
 function stripLeadingTitle(text: string, title: string): string {
   const t = title.trim()
   if (!t) return text
-  const rx = new RegExp('^' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[–—:\\-]\\s*', 'i')
+  const rx = new RegExp(
+    '^' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[–—:\\-]\\s*',
+    'i'
+  )
   return text.replace(rx, '').trim()
 }
