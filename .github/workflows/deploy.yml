@@ -10,21 +10,30 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # OBS: ingen cache här -> inget lockfile-gnäll
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          # Ingen cache (kräver lockfile annars)
 
-      - run: npm install
-      - run: npm run build
+      # Kör vanlig install – funkar utan lockfile
+      - name: Install deps (no lockfile)
+        run: npm install
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Build
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
