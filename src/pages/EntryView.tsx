@@ -1,3 +1,4 @@
+// src/pages/EntryView.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getCollections, getEntries, saveEntries } from '../db'
