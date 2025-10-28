@@ -16,7 +16,7 @@ export default function EntryView() {
 
   // lokala editfält
   const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')  // MD eller HTML
+  const [content, setContent] = useState('')
   const [tags, setTags] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [custom, setCustom] = useState<Record<string, any>>({})
@@ -47,7 +47,7 @@ export default function EntryView() {
     const updated: Entry = {
       ...entry,
       title,
-      contentMD: content, // MD eller HTML
+      contentMD: content,
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       images,
       custom,
@@ -68,7 +68,7 @@ export default function EntryView() {
     navigate('/search')
   }
 
-  // MD/HTML → säkert HTML för visningsläge
+  // Säker render av MD/HTML för visningsläge
   const html = useMemo(() => mdToHtml(entry?.contentMD || ''), [entry])
 
   if (!entry) {
