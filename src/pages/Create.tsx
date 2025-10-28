@@ -2,8 +2,8 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { getCollections, getEntries, saveEntries } from '../db'
 import type { Collection, Entry, CollectionField } from '../types'
 import { uid } from '../utils'
-import { marked } from 'marked'
 import RichEditor from '../components/RichEditor'
+import { mdToHtml } from '../lib/md'
 
 type TemplateKey =
   | 'auto' | 'none'
@@ -291,7 +291,7 @@ export default function Create() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [collectionId, setCollectionId] = useState('notes')
   const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState('') // MD eller HTML beroende på läge i editorn
   const [tags, setTags] = useState<string>('')
   const [images, setImages] = useState<string[]>([])
   const [related, setRelated] = useState<string[]>([])
@@ -332,7 +332,7 @@ export default function Create() {
       id: uid(),
       collectionId,
       title: title || '(utan titel)',
-      contentMD: content,
+      contentMD: content, // kan vara MD eller HTML – vi renderar robust oavsett
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       images,
       relatedIds: related,
@@ -355,11 +355,8 @@ export default function Create() {
     alert('Sparat!')
   }
 
-  // Alltid kör Markdown → HTML (marked släpper igenom rå HTML)
-  const previewHTML = useMemo(() => {
-    const v = content || ''
-    return marked.parse(v, { async: false }) as string
-  }, [content])
+  // Förhandsvisning: robust MD/HTML → säkert HTML
+  const previewHTML = useMemo(() => mdToHtml(content || ''), [content])
 
   async function onPickImages(files: FileList | null) {
     if (!files) return
