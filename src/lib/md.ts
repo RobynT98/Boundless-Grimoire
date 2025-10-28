@@ -2,22 +2,16 @@
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
-/**
- * Konverterar Markdown/HTML till HTML.
- * - Tillåter <span style="..."> (färg/typsnitt)
- * - Filtrerar farliga taggar.
- * - Hoppar över sanering i SSR/CI (ingen DOM där ändå).
- */
+/** Markdown eller HTML → sanerad HTML. */
 export function mdToHtml(mdOrHtml: string): string {
   const raw = mdOrHtml || ''
-  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
-  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
+  // ALLTID parsa med marked, även om råsträngen innehåller HTML
+  const html = marked.parse(raw, { async: false }) as string
 
-  if (typeof window === 'undefined') {
-    return html
-  }
+  // I SSR/CI: ingen DOM -> hoppa sanering (vi visar inte output där)
+  if (typeof window === 'undefined') return html
 
-  // DomPurify-sanering (behåll style på span)
+  // Sanera men behåll <span style="..."> (färg/typsnitt)
   const clean = (DOMPurify as any).sanitize(html, {
     ADD_ATTR: ['style'],
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
@@ -25,16 +19,10 @@ export function mdToHtml(mdOrHtml: string): string {
   return clean
 }
 
-/**
- * Markdown/HTML → ren text (snippets).
- * - Plockar bort första H1/H2
- * - Komprimerar whitespace
- * - Valfritt: strippar ledande titelprefix
- */
+/** Markdown/HTML → ren text (för snippets). */
 export function mdToPlain(mdOrHtml: string, title?: string): string {
   const raw = mdOrHtml || ''
-  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
-  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
+  const html = marked.parse(raw, { async: false }) as string
 
   if (typeof window === 'undefined') {
     let txt = html.replace(/<[^>]+>/g, ' ')
@@ -45,7 +33,6 @@ export function mdToPlain(mdOrHtml: string, title?: string): string {
 
   const div = document.createElement('div')
   div.innerHTML = html
-
   const firstHeading = div.querySelector('h1, h2')
   if (firstHeading) firstHeading.remove()
 
