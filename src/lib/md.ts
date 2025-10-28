@@ -1,33 +1,63 @@
-// src/lib/md.d.ts
+// src/lib/md.ts
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 /**
- * Typdeklarationer för Markdown-hantering i Boundless Grimoire.
- * Ger intellisense för mdToHtml och mdToPlain.
+ * Konverterar Markdown/HTML till HTML.
+ * - Tillåter <span style="..."> (färg/typsnitt)
+ * - Filtrerar farliga taggar.
+ * - Hoppar över sanering i SSR/CI (ingen DOM där ändå).
  */
+export function mdToHtml(mdOrHtml: string): string {
+  const raw = mdOrHtml || ''
+  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
+  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
 
-declare module './md' {
-  /**
-   * Konverterar Markdown eller HTML till sanerad HTML.
-   * - Tillåter <span style="..."> (för färg/typsnitt)
-   * - Filtrerar bort farliga taggar (script, iframe, etc)
-   * - Hoppar över sanering i SSR/CI-miljöer
-   * 
-   * @param mdOrHtml - Innehållet i Markdown- eller HTML-format.
-   * @returns En sanerad HTML-sträng som är säker att visa i webbläsaren.
-   */
-  export function mdToHtml(mdOrHtml: string): string
+  if (typeof window === 'undefined') {
+    return html
+  }
 
-  /**
-   * Extraherar ren text från Markdown eller HTML.
-   * - Tar bort första H1/H2
-   * - Komprimerar whitespace
-   * - Tar bort ledande titel om den matchar
-   * 
-   * @param mdOrHtml - Innehållet i Markdown- eller HTML-format.
-   * @param title - (valfritt) En titel som tas bort om den finns i början av texten.
-   * @returns En ren, läsbar textversion utan HTML-taggar.
-   */
-  export function mdToPlain(mdOrHtml: string, title?: string): string
+  // DomPurify-sanering (behåll style på span)
+  const clean = (DOMPurify as any).sanitize(html, {
+    ADD_ATTR: ['style'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+  })
+  return clean
 }
 
-export {}
+/**
+ * Markdown/HTML → ren text (snippets).
+ * - Plockar bort första H1/H2
+ * - Komprimerar whitespace
+ * - Valfritt: strippar ledande titelprefix
+ */
+export function mdToPlain(mdOrHtml: string, title?: string): string {
+  const raw = mdOrHtml || ''
+  const looksLikeHTML = /<\s*[a-z][\s\S]*>/i.test(raw)
+  const html = looksLikeHTML ? raw : (marked.parse(raw, { async: false }) as string)
+
+  if (typeof window === 'undefined') {
+    let txt = html.replace(/<[^>]+>/g, ' ')
+    txt = txt.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
+    if (title) txt = stripLeadingTitle(txt, title)
+    return txt
+  }
+
+  const div = document.createElement('div')
+  div.innerHTML = html
+
+  const firstHeading = div.querySelector('h1, h2')
+  if (firstHeading) firstHeading.remove()
+
+  let text = (div.textContent || div.innerText || '')
+  text = text.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
+  if (title) text = stripLeadingTitle(text, title)
+  return text
+}
+
+function stripLeadingTitle(text: string, title: string): string {
+  const t = title.trim()
+  if (!t) return text
+  const rx = new RegExp('^' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[–—:\\-]\\s*', 'i')
+  return text.replace(rx, '').trim()
+}
